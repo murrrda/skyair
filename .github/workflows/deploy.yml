@@ -16,7 +16,7 @@ jobs:
           key: ${{ secrets.DROPLET_SSH_KEY }}
           script: |
             cd /root/IIS/skyair
-            GIT_SSH_COMMAND="ssh -i ~/.ssh/github" git pull origin main
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/github" git pull origin master
             docker exec skyair-SkyCore-1 composer install --no-dev --optimize-autoloader
             docker exec skyair-SkyCore-1 npm ci
             docker exec skyair-SkyCore-1 npm run build
