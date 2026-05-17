@@ -1,0 +1,26 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DROPLET_HOST }}
+          username: ${{ secrets.DROPLET_USER }}
+          key: ${{ secrets.DROPLET_SSH_KEY }}
+          script: |
+            cd /root/IIS/skyair
+            GIT_SSH_COMMAND="ssh -i ~/.ssh/github" git pull origin main
+            docker exec skyair-SkyCore-1 composer install --no-dev --optimize-autoloader
+            docker exec skyair-SkyCore-1 npm ci
+            docker exec skyair-SkyCore-1 npm run build
+            docker exec skyair-SkyCore-1 php artisan migrate --force
+            docker exec skyair-SkyCore-1 php artisan config:cache
+            docker exec skyair-SkyCore-1 php artisan route:cache
+            docker exec skyair-SkyCore-1 php artisan view:cache
