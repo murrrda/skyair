@@ -80,7 +80,11 @@ export default function Welcome({
                                 return (
                                     <Link
                                         key={role.key}
-                                        href={login({ query: { role: role.key } })}
+                                        href={
+                                            role.key === 'kupac'
+                                                ? '/kupac/login'
+                                                : login({ query: { role: role.key } })
+                                        }
                                         className="group flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition hover:-translate-y-1 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >
                                         <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
