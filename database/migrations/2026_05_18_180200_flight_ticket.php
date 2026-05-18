@@ -18,7 +18,7 @@ return new class extends Migration
             $table->foreignId('flight_id')->constrained();
             $table->foreignId('reservation_id')->constrained()->cascadeOnDelete();
             $table->foreignId('ticket_class_id')->constrained();
-            $table->foreignId('baggage_id')->nullable()->unique()->constrained();
+            $table->foreignId('baggage_id')->nullable()->unique()->constrained('baggages');
             $table->decimal('base_price', 10, 2);
             $table->decimal('final_price', 10, 2);
             $table->integer('seat_number');
