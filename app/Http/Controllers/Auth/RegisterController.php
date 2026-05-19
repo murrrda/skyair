@@ -20,6 +20,7 @@ class RegisterController extends Controller
         $user = $creator->create(array_merge($request->all(), ['role' => $role]));
         event(new Registered($user));
         Auth::login($user);
-        return redirect()->intended(config('fortify.home'));
+        $home = $role === 'customer' ? '/kupac/pretraga-letova' : config('fortify.home');
+        return redirect()->intended($home);
     }
 }
