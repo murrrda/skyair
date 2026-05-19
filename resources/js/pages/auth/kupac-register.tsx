@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { store } from '@/routes/register';
+
 
 type Props = {
     passwordRules: string;
@@ -14,11 +14,13 @@ type Props = {
 
 export default function KupacRegister({ passwordRules }: Props) {
     return (
+
         <>
             <Head title="Registracija korisnika" />
 
             <Form
-                {...store.form()}
+                action="/kupac/register"
+                method="post"
                 resetOnSuccess={['password', 'password_confirmation']}
                 disableWhileProcessing
                 className="flex flex-col gap-4"
@@ -110,23 +112,23 @@ export default function KupacRegister({ passwordRules }: Props) {
                                 <InputError message={errors.date_of_birth} />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="place_of_residence">Mesto stanovanja</Label>
+                                <Label htmlFor="address">Mesto stanovanja</Label>
                                 <Input
-                                    id="place_of_residence"
-                                    name="place_of_residence"
+                                    id="address"
+                                    name="address"
                                     type="text"
                                     tabIndex={7}
                                     placeholder="Beograd"
                                 />
-                                <InputError message={errors.place_of_residence} />
+                                <InputError message={errors.address} />
                             </div>
                         </div>
 
                         <Button
                             type="submit"
                             className="mt-2 w-full bg-[#185FA5] hover:bg-[#134d86]"
-                            tabIndex={8}
-                            disabled={processing}
+                            tabIndex={5}
+                            data-test="register-user-button"
                         >
                             {processing && <Spinner />}
                             Registruj se
