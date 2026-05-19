@@ -1,4 +1,4 @@
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Ticket, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
