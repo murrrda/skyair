@@ -1,9 +1,10 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\LoginController;
 
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
@@ -22,6 +23,10 @@ Route::post('/zaposleni/register', [RegisterController::class, 'registerEmployee
 
 Route::inertia('/admin', 'admin/index')->name('admin.index');
 Route::inertia('/admin/login', 'auth/admin-login')->name('admin.login');
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('zaposleni', ZaposlenController::class);
+});
 
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');

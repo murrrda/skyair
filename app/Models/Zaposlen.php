@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Database\Factories\ZaposlenFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Zaposlen extends Model
 {
-    /** @use HasFactory<\Database\Factories\ZaposlenFactory> */
+    /** @use HasFactory<ZaposlenFactory> */
     use HasFactory;
 
     protected $table = 'zaposleni';
@@ -30,11 +32,19 @@ class Zaposlen extends Model
 
     protected $casts = [
         'datum_zaposlenja' => 'date',
-        'datum_otkaza'     => 'date',
+        'datum_otkaza' => 'date',
     ];
 
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function tipoviUgovora(): BelongsToMany
+    {
+        return $this->belongsToMany(TipUgovora::class, 'ugovori', 'zaposlen_user_id', 'tip_ugovora_id')
+            ->using(Ugovor::class)
+            ->withPivot(['datum_potpisivanja', 'datum_isteka', 'napomena'])
+            ->withTimestamps();
     }
 }
