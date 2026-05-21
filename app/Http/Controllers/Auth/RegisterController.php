@@ -10,17 +10,19 @@ use Illuminate\Support\Facades\Auth;
 
 class RegisterController extends Controller
 {
-    public function registerCustomer(Request $request, CreateNewUser $creator) {
-        return $this->register($request, $creator, 'customer');
-    }
-    public function registerEmployee(Request $request, CreateNewUser $creator) {
-        return $this->register($request, $creator, 'employee');
-    }
-    public function register(Request $request, CreateNewUser $creator, string $role) {
-        $user = $creator->create(array_merge($request->all(), ['role' => $role]));
+    public function registerCustomer(Request $request, CreateNewUser $creator)
+    {
+        $user = $creator->create($request->all());
         event(new Registered($user));
         Auth::login($user);
-        $home = $role === 'customer' ? '/kupac/pretraga-letova' : config('fortify.home');
-        return redirect()->intended($home);
+        return redirect()->intended('/kupac/pretraga-letova');
+    }
+
+    public function registerEmployee(Request $request, CreateNewUser $creator)
+    {
+        $user = $creator->create($request->all());
+        event(new Registered($user));
+        Auth::login($user);
+        return redirect()->intended(config('fortify.home'));
     }
 }
