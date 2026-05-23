@@ -34,4 +34,14 @@ class Plane extends Model
     {
         return $this->hasMany(Flight::class);
     }
+
+    public function services()
+    {
+        return $this->hasMany(Service::class);
+    }
+
+    public function failures()
+    {
+        return $this->hasMany(Failure::class);
+    }
 }
