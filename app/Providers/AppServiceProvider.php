@@ -2,9 +2,15 @@
 
 namespace App\Providers;
 
+use App\Models\Putnik;
+use App\Models\User;
+use App\Models\Zaposlen;
+use App\Observers\PutnikObserver;
+use App\Observers\ZaposlenObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 
@@ -24,11 +30,29 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->configureDefaults();
+        $this->registerObservers();
+        $this->registerGates();
     }
 
     /**
      * Configure default behaviors for production-ready applications.
      */
+    protected function registerObservers(): void
+    {
+        Putnik::observe(PutnikObserver::class);
+        Zaposlen::observe(ZaposlenObserver::class);
+    }
+
+    protected function registerGates(): void
+    {
+        Gate::define('is-putnik',   fn (User $user) => $user->putnik !== null);
+        Gate::define('is-zaposlen', fn (User $user) => $user->zaposlen !== null);
+
+        // Add a new Gate::define here whenever a new role string is introduced.
+        Gate::define('is-admin', fn (User $user) => $user->zaposlen?->role === 'admin');
+        Gate::define('is-pilot', fn (User $user) => $user->zaposlen?->role === 'pilot');
+    }
+
     protected function configureDefaults(): void
     {
         Date::use(CarbonImmutable::class);

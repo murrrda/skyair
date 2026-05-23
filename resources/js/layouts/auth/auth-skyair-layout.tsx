@@ -1,9 +1,9 @@
 import { Link, usePage } from '@inertiajs/react';
 import type { AuthLayoutProps } from '@/types';
 
-export default function AuthSkyairLayout({ children }: AuthLayoutProps) {
+export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLayoutProps & { hideTabs?: boolean }) {
     const { url } = usePage();
-    const isLogin = url.startsWith('/kupac/login') || url.startsWith('/login');
+    const isLogin = url.startsWith('/kupac/login') || url.startsWith('/login') || url.startsWith('/admin/login');
 
     return (
         <div className="grid min-h-svh lg:grid-cols-2">
@@ -46,31 +46,32 @@ export default function AuthSkyairLayout({ children }: AuthLayoutProps) {
                         SkyAir
                     </Link>
 
-                    {/* Tabs */}
-                    <div className="mb-6 flex overflow-hidden rounded-lg border border-border">
-                        <Link
-                            href="/kupac/login"
-                            className={
-                                'flex-1 py-2.5 text-center text-sm font-medium transition ' +
-                                (isLogin
-                                    ? 'bg-[#185FA5] text-white'
-                                    : 'bg-background text-muted-foreground hover:bg-muted')
-                            }
-                        >
-                            Prijava
-                        </Link>
-                        <Link
-                            href="/kupac/register"
-                            className={
-                                'flex-1 py-2.5 text-center text-sm font-medium transition ' +
-                                (!isLogin
-                                    ? 'bg-[#185FA5] text-white'
-                                    : 'bg-background text-muted-foreground hover:bg-muted')
-                            }
-                        >
-                            Registracija
-                        </Link>
-                    </div>
+                    {!hideTabs && (
+                        <div className="mb-6 flex overflow-hidden rounded-lg border border-border">
+                            <Link
+                                href="/kupac/login"
+                                className={
+                                    'flex-1 py-2.5 text-center text-sm font-medium transition ' +
+                                    (isLogin
+                                        ? 'bg-[#185FA5] text-white'
+                                        : 'bg-background text-muted-foreground hover:bg-muted')
+                                }
+                            >
+                                Prijava
+                            </Link>
+                            <Link
+                                href="/kupac/register"
+                                className={
+                                    'flex-1 py-2.5 text-center text-sm font-medium transition ' +
+                                    (!isLogin
+                                        ? 'bg-[#185FA5] text-white'
+                                        : 'bg-background text-muted-foreground hover:bg-muted')
+                                }
+                            >
+                                Registracija
+                            </Link>
+                        </div>
+                    )}
 
                     {children}
                 </div>

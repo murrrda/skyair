@@ -26,14 +26,17 @@ class RegistrationTest extends TestCase
 
     public function test_new_users_can_register()
     {
-        $response = $this->post(route('register.store'), [
-            'name' => 'Test User',
+        $response = $this->post('/kupac/register', [
+            'first_name' => 'Test',
+            'last_name' => 'User',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
+            'date_of_birth' => '1995-05-15',
+            'address' => 'Beograd',
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        $response->assertRedirect('/kupac/pretraga-letova');
     }
 }
