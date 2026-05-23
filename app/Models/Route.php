@@ -29,4 +29,9 @@ class Route extends Model
     {
         return $this->hasMany(Flight::class);
     }
+
+    public function layovers()
+    {
+        return $this->hasMany(Layover::class);
+    }
 }
