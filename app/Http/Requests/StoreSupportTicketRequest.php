@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreSupportTicketRequest extends FormRequest
 {
@@ -16,6 +17,7 @@ class StoreSupportTicketRequest extends FormRequest
         return [
             'category_id' => ['required', 'exists:category,id'],
             'description' => ['required', 'string', 'max:5000'],
+            'priority' => ['nullable', Rule::in(['low', 'medium', 'high'])],
         ];
     }
 }

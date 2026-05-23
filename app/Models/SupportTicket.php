@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
@@ -12,20 +14,38 @@ class SupportTicket extends Model
         'description',
         'number',
         'status',
+        'priority',
+        'category_id',
+        'outcome',
+        'closed_at',
     ];
 
-    public function user()
+    protected $casts = [
+        'closed_at' => 'datetime',
+    ];
+
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function category()
+    public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
     }
 
-    public function fieldValues()
+    public function fieldValues(): HasMany
     {
         return $this->hasMany(SupportTicketFieldValue::class);
+    }
+
+    public function workLogs(): HasMany
+    {
+        return $this->hasMany(SupportTicketWorkLog::class)->orderBy('started_at');
+    }
+
+    public function activeWorkLog()
+    {
+        return $this->hasOne(SupportTicketWorkLog::class)->whereNull('ended_at')->latestOfMany('started_at');
     }
 }
