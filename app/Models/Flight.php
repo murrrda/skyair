@@ -38,4 +38,9 @@ class Flight extends Model
     {
         return $this->belongsTo(Zaposlen::class, 'dispatcher_id', 'user_id');
     }
+
+    public function failures()
+    {
+        return $this->hasMany(Failure::class);
+    }
 }
