@@ -7,22 +7,18 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable(['name', 'first_name', 'last_name', 'email', 'password', 'address', 'date_of_birth'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -32,8 +28,23 @@ class User extends Authenticatable
         ];
     }
 
-    public function supportTickets()
+    public function putnik(): HasOne
     {
-        return $this->hasMany(SupportTicket::class);
+        return $this->hasOne(Putnik::class, 'user_id');
+    }
+
+    public function zaposlen(): HasOne
+    {
+        return $this->hasOne(Zaposlen::class, 'user_id');
+    }
+
+    public function isPutnik(): bool
+    {
+        return $this->putnik()->exists();
+    }
+
+    public function isZaposlen(): bool
+    {
+        return $this->zaposlen()->exists();
     }
 }

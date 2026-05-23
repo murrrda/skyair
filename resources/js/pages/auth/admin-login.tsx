@@ -7,20 +7,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
-import { request } from '@/routes/password';
 
 type Props = {
     status?: string;
-    canResetPassword: boolean;
 };
 
-export default function KupacLogin({ status, canResetPassword }: Props) {
+export default function AdminLogin({ status }: Props) {
     return (
         <>
-            <Head title="Prijava korisnika" />
+            <Head title="Admin prijava" />
 
             <Form
-                action="/kupac/login"
+                action="/admin/login"
                 method="post"
                 resetOnSuccess={['password']}
                 className="flex flex-col gap-4"
@@ -37,24 +35,13 @@ export default function KupacLogin({ status, canResetPassword }: Props) {
                                 autoFocus
                                 tabIndex={1}
                                 autoComplete="email"
-                                placeholder="marko@email.com"
+                                placeholder="admin@skyair.com"
                             />
                             <InputError message={errors.email} />
                         </div>
 
                         <div className="grid gap-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="password">Lozinka</Label>
-                                {canResetPassword && (
-                                    <a
-                                        href={request().url}
-                                        className="text-xs text-[#185FA5] hover:underline"
-                                        tabIndex={5}
-                                    >
-                                        Zaboravljena lozinka?
-                                    </a>
-                                )}
-                            </div>
+                            <Label htmlFor="password">Lozinka</Label>
                             <PasswordInput
                                 id="password"
                                 name="password"
@@ -80,7 +67,7 @@ export default function KupacLogin({ status, canResetPassword }: Props) {
                             disabled={processing}
                         >
                             {processing && <Spinner />}
-                            Prijavi se
+                            Prijavi se kao admin
                         </Button>
 
                         {status && (
@@ -95,6 +82,6 @@ export default function KupacLogin({ status, canResetPassword }: Props) {
     );
 }
 
-KupacLogin.layout = (page: React.ReactNode) => (
-    <AuthSkyairLayout>{page}</AuthSkyairLayout>
+AdminLogin.layout = (page: React.ReactNode) => (
+    <AuthSkyairLayout hideTabs>{page}</AuthSkyairLayout>
 );
