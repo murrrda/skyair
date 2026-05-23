@@ -111,6 +111,17 @@ check_php() {
             ;;
     esac
     ok "PHP installed: $(php -v | head -n1)"
+
+    # On Arch, extensions must be explicitly enabled in php.ini
+    if [ "$PKG_MGR" = "pacman" ] && [ -f /etc/php/php.ini ]; then
+        local exts=(iconv mbstring)
+        for ext in "${exts[@]}"; do
+            if ! php -m 2>/dev/null | grep -qi "^${ext}$"; then
+                log "Enabling PHP extension: $ext"
+                $SUDO sed -i "s/^;extension=${ext}/extension=${ext}/" /etc/php/php.ini
+            fi
+        done
+    fi
 }
 
 check_composer() {
