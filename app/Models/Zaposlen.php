@@ -52,5 +52,8 @@ class Zaposlen extends Model
             ->using(Ugovor::class)
             ->withPivot(['datum_potpisivanja', 'datum_isteka', 'napomena'])
             ->withTimestamps();
+    public function supportWorkLogs(): HasMany
+    {
+        return $this->hasMany(SupportTicketWorkLog::class, 'employee_id', 'user_id');
     }
 }
