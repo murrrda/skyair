@@ -33,14 +33,14 @@ class ZaposlenController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email'],
             'date_of_birth' => ['required', 'date'],
-            'address' => ['required', 'string', 'max:500'],
+            'address' => ['nullable', 'string', 'max:500'],
             'phone_number' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent'],
+            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
             'datum_zaposlenja' => ['required', 'date'],
             'status' => ['required', 'string', 'in:aktivan,neaktivan,otkazan'],
             'tip_ugovora_id' => ['required', 'exists:tipovi_ugovora,id'],
             'datum_potpisivanja' => ['required', 'date'],
-            'datum_isteka' => ['required', 'date', 'after:datum_potpisivanja'],
+            'datum_isteka' => ['nullable', 'date', 'after:datum_potpisivanja'],
             'napomena' => ['nullable', 'string'],
         ]);
 
@@ -129,9 +129,9 @@ class ZaposlenController extends Controller
             'last_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'date_of_birth' => ['required', 'date'],
-            'address' => ['required', 'string', 'max:500'],
+            'address' => ['nullable', 'string', 'max:500'],
             'phone_number' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent'],
+            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
             'datum_zaposlenja' => ['required', 'date'],
         ]);
 
@@ -141,7 +141,7 @@ class ZaposlenController extends Controller
             'name' => $validated['first_name'].' '.$validated['last_name'],
             'email' => $validated['email'],
             'date_of_birth' => $validated['date_of_birth'],
-            'address' => $validated['address'],
+            'address' => $validated['address'] ?? null,
             'phone_number' => $validated['phone_number'] ?? null,
         ]);
 
@@ -163,9 +163,6 @@ class ZaposlenController extends Controller
             'napomena_otkaza' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $user = User::findOrFail($employee->user_id);
-        $ime  = $user->first_name.' '.$user->last_name;
-
         if ($employee->status === 'otkazan') {
             return back()->withErrors(['razlog_otkaza' => 'Zaposlen je već otkazan.']);
         }
@@ -173,6 +170,6 @@ class ZaposlenController extends Controller
         $service->terminate($employee, $validated['razlog_otkaza'], $validated['napomena_otkaza'] ?? null);
 
         return redirect()->route('admin.employee.index')
-            ->with('success', "Zaposlen {$ime} je otkazan.");
+            ->with('success', "Zaposlen {$employee->user->first_name} {$employee->user->last_name} je otkazan.");
     }
 }

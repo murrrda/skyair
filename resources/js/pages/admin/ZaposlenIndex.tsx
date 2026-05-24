@@ -72,6 +72,7 @@ const ROLE_LABELS: Record<string, string> = {
     pilot: 'Pilot',
     dispatcher: 'Dispečer',
     agent: 'Agent',
+    cabin_crew: 'Kabinsko osoblje',
 };
 
 function StatusBadge({ status }: { status: ZaposlenRow['status'] }) {
