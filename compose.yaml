@@ -43,6 +43,27 @@ services:
         depends_on:
             - pgsql
             - redis
+    reverb:
+        build:
+            context: './vendor/laravel/sail/runtimes/8.5'
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: 'sail-8.5/app'
+        command: 'php artisan reverb:start --host=0.0.0.0 --port=8080'
+        restart: unless-stopped
+        ports:
+            - '${REVERB_PORT:-8080}:8080'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:
+            - pgsql
+            - redis
     pgsql:
         image: 'postgres:18-alpine'
         ports:
