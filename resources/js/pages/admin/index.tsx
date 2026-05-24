@@ -1,7 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Ticket, Users } from 'lucide-react';
 import { Map, Plane, Ticket, Users } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 
 const sections = [
     {
