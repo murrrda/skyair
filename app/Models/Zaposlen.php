@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Zaposlen extends Model
 {
@@ -37,10 +36,5 @@ class Zaposlen extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
-    }
-
-    public function supportWorkLogs(): HasMany
-    {
-        return $this->hasMany(SupportTicketWorkLog::class, 'employee_id', 'user_id');
     }
 }

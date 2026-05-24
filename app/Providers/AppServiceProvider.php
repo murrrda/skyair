@@ -3,11 +3,9 @@
 namespace App\Providers;
 
 use App\Models\Putnik;
-use App\Models\SupportTicket;
 use App\Models\User;
 use App\Models\Zaposlen;
 use App\Observers\PutnikObserver;
-use App\Observers\SupportTicketObserver;
 use App\Observers\ZaposlenObserver;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
@@ -43,7 +41,6 @@ class AppServiceProvider extends ServiceProvider
     {
         Putnik::observe(PutnikObserver::class);
         Zaposlen::observe(ZaposlenObserver::class);
-        SupportTicket::observe(SupportTicketObserver::class);
     }
 
     protected function registerGates(): void

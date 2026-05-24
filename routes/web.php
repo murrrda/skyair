@@ -1,8 +1,5 @@
 <?php
 
-use App\Http\Controllers\EmployeeSupportController;
-use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 use App\Http\Controllers\Auth\RegisterController;
@@ -33,19 +30,6 @@ Route::inertia('/kupac/pretraga-letova', 'kupac/pretraga-letova')->name('kupac.p
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
-    Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
-    Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
-
-    Route::prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
-        Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');
-        Route::post('/{ticket}/take', [EmployeeSupportController::class, 'takeOver'])->name('take');
-        Route::post('/{ticket}/request-info', [EmployeeSupportController::class, 'requestInfo'])->name('requestInfo');
-        Route::post('/{ticket}/transfer', [EmployeeSupportController::class, 'transfer'])->name('transfer');
-        Route::post('/{ticket}/complete', [EmployeeSupportController::class, 'complete'])->name('complete');
-    });
-
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 });
 
 require __DIR__.'/settings.php';
