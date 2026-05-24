@@ -27,6 +27,7 @@ export default function PretragaLetova() {
                         <nav className="flex items-center gap-5 text-[13px]">
                             <Link href="/kupac/pretraga-letova" className="font-semibold text-foreground">Letovi</Link>
                             <Link href="#" className="text-muted-foreground">Moji letovi</Link>
+                            <Link href="/support-tickets" className="text-muted-foreground">Moji tiketi</Link>
                             <Link href="#" className="text-muted-foreground">Loyalty</Link>
                             {auth.user ? (
                                 <div className="flex items-center gap-2">
