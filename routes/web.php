@@ -1,5 +1,8 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\ZaposlenController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
@@ -8,8 +11,6 @@ use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\LoginController;
 
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
@@ -27,6 +28,11 @@ Route::post('/kupac/register', [RegisterController::class, 'registerCustomer'])-
 Route::post('/zaposleni/register', [RegisterController::class, 'registerEmployee'])->name('zaposleni.register.store');
 
 Route::inertia('/admin/login', 'auth/admin-login')->name('admin.login');
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('zaposleni', ZaposlenController::class);
+});
+
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);
 
 Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->group(function () {
