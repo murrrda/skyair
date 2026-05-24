@@ -72,6 +72,7 @@ const ROLE_LABELS: Record<string, string> = {
     pilot: 'Pilot',
     dispatcher: 'Dispečer',
     agent: 'Agent',
+    cabin_crew: 'Kabinsko osoblje',
 };
 
 function StatusBadge({ status }: { status: ZaposlenRow['status'] }) {
@@ -128,7 +129,7 @@ function TerminateDialog({
 return;
 }
 
-        destroy(`/admin/zaposleni/${target.user_id}`, {
+        destroy(`/admin/employee/${target.user_id}`, {
             onSuccess: handleClose,
         });
     }
@@ -195,7 +196,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
 
     function filter(key: string, value: string) {
         router.get(
-            '/admin/zaposleni',
+            '/admin/employee',
             { ...filters, [key]: value || undefined },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -221,7 +222,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                     </p>
                 </div>
                 <Button asChild className="bg-[#185FA5] hover:bg-[#0C447C]">
-                    <Link href="/admin/zaposleni/create">+ Dodaj zaposlenog</Link>
+                    <Link href="/admin/employee/create">+ Dodaj zaposlenog</Link>
                 </Button>
             </div>
 
@@ -320,7 +321,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
                                         <Button asChild variant="outline" size="sm">
-                                            <Link href={`/admin/zaposleni/${z.user_id}/edit`}>
+                                            <Link href={`/admin/employee/${z.user_id}/edit`}>
                                                 ✎ Izmijeni
                                             </Link>
                                         </Button>

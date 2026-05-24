@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 
 const NAV_LINKS = [
-    { label: 'Zaposleni', href: '/admin/zaposleni' },
+    { label: 'Zaposleni', href: '/admin/employee' },
     { label: 'Incidenti', href: '/admin/incidenti' },
     { label: 'Performanse', href: '/admin/performanse' },
 ];
