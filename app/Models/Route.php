@@ -25,6 +25,16 @@ class Route extends Model
         return $this->belongsTo(Zaposlen::class, 'admin_id', 'user_id');
     }
 
+    public function startingAirport()
+    {
+        return $this->belongsTo(Airport::class, 'starting_airport_id');
+    }
+
+    public function landingAirport()
+    {
+        return $this->belongsTo(Airport::class, 'landing_airport_id');
+    }
+
     public function flights()
     {
         return $this->hasMany(Flight::class);

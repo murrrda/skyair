@@ -3,6 +3,7 @@
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
+use App\Http\Controllers\RouteController;
 use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -35,6 +36,13 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/flota/{plane}/uredi', [PlaneController::class, 'edit'])->name('flota.edit');
     Route::patch('/flota/{plane}', [PlaneController::class, 'update'])->name('flota.update');
     Route::delete('/flota/{plane}', [PlaneController::class, 'destroy'])->name('flota.destroy');
+
+    Route::get('/rute', [RouteController::class, 'index'])->name('rute.index');
+    Route::get('/rute/nova', [RouteController::class, 'create'])->name('rute.create');
+    Route::post('/rute', [RouteController::class, 'store'])->name('rute.store');
+    Route::get('/rute/{route}/uredi', [RouteController::class, 'edit'])->name('rute.edit');
+    Route::patch('/rute/{route}', [RouteController::class, 'update'])->name('rute.update');
+    Route::delete('/rute/{route}', [RouteController::class, 'destroy'])->name('rute.destroy');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 

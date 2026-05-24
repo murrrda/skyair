@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plane, Ticket, Users } from 'lucide-react';
+import { Map, Plane, Ticket, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const sections = [
@@ -23,6 +23,13 @@ const sections = [
         description: 'Upravljanje avionima i dodavanje novih',
         href: '/admin/flota',
         icon: Plane,
+    },
+    {
+        key: 'rute',
+        title: 'RUTE',
+        description: 'Upravljanje rutama (polazni i krajnji aerodrom)',
+        href: '/admin/rute',
+        icon: Map,
     },
 ];
 
