@@ -70,14 +70,32 @@ class ZaposlenController extends Controller
             ->with('success', "Zaposlen {$user->first_name} {$user->last_name} uspješno registrovan. Privremena lozinka: {$tempPassword}");
     }
 
-    public function index()
+    public function index(Request $request)
     {
         Gate::authorize('is-admin');
 
-        $zaposleni = Zaposlen::with(['user', 'tipoviUgovora'])->paginate(20);
+        $query = Zaposlen::with(['user', 'tipoviUgovora']);
+
+        if ($search = $request->input('search')) {
+            $query->whereHas('user', fn ($q) => $q
+                ->whereRaw('lower(first_name) like ?', ['%' . strtolower($search) . '%'])
+                ->orWhereRaw('lower(last_name) like ?', ['%' . strtolower($search) . '%'])
+                ->orWhereRaw('lower(email) like ?', ['%' . strtolower($search) . '%'])
+            );
+        }
+
+        if ($role = $request->input('role')) {
+            $query->where('role', $role);
+        }
+
+        if ($tipUgovoraId = $request->input('tip_ugovora_id')) {
+            $query->whereHas('tipoviUgovora', fn ($q) => $q->where('tipovi_ugovora.id', $tipUgovoraId));
+        }
 
         return Inertia::render('admin/ZaposlenIndex', [
-            'zaposleni' => $zaposleni,
+            'zaposleni'     => $query->paginate(10)->withQueryString(),
+            'tipoviUgovora' => TipUgovora::all(['id', 'naziv']),
+            'filters'       => $request->only(['search', 'role', 'tip_ugovora_id']),
         ]);
     }
 
