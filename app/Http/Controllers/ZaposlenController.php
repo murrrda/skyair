@@ -129,6 +129,7 @@ class ZaposlenController extends Controller
             'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'date_of_birth' => ['required', 'date'],
             'address' => ['required', 'string', 'max:500'],
+            'phone_number' => ['nullable', 'string', 'max:30'],
             'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent'],
             'datum_zaposlenja' => ['required', 'date'],
         ]);
@@ -140,6 +141,7 @@ class ZaposlenController extends Controller
             'email' => $validated['email'],
             'date_of_birth' => $validated['date_of_birth'],
             'address' => $validated['address'],
+            'phone_number' => $validated['phone_number'] ?? null,
         ]);
 
         $zaposlen->update([
