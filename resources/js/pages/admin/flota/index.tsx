@@ -1,5 +1,5 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { Plane as PlaneIcon, Plus } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { Pencil, Plane as PlaneIcon, Plus, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -23,7 +23,7 @@ type Plane = {
 
 type PageProps = {
     planes: Plane[];
-    flash?: { success?: string };
+    flash?: { success?: string; error?: string };
 };
 
 const statusMeta: Record<PlaneStatus, { label: string; className: string }> = {
@@ -53,7 +53,17 @@ export default function FlotaIndex() {
         if (flash?.success) {
             toast.success(flash.success);
         }
-    }, [flash?.success]);
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash?.success, flash?.error]);
+
+    function handleDelete(plane: Plane) {
+        if (!confirm(`Da li ste sigurni da želite da obrišete avion ${plane.reg_number} (${plane.model})?`)) {
+            return;
+        }
+        router.delete(`/admin/flota/${plane.id}`, { preserveScroll: true });
+    }
 
     return (
         <>
@@ -121,11 +131,28 @@ export default function FlotaIndex() {
                                                 {plane.model}
                                             </div>
                                         </div>
-                                        <span
-                                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusMeta[plane.status].className}`}
-                                        >
-                                            {statusMeta[plane.status].label}
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${statusMeta[plane.status].className}`}
+                                            >
+                                                {statusMeta[plane.status].label}
+                                            </span>
+                                            <Link
+                                                href={`/admin/flota/${plane.id}/uredi`}
+                                                className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                                                aria-label={`Uredi avion ${plane.reg_number}`}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Link>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(plane)}
+                                                className="rounded-md p-1.5 text-muted-foreground transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-400"
+                                                aria-label={`Obriši avion ${plane.reg_number}`}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3 border-t border-border pt-3 text-xs">

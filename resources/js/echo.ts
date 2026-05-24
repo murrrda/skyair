@@ -8,7 +8,7 @@ declare global {
     }
 }
 
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && import.meta.env.VITE_REVERB_APP_KEY) {
     window.Pusher = Pusher;
 
     window.Echo = new Echo({

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StorePlaneRequest;
+use App\Http\Requests\UpdatePlaneRequest;
 use App\Models\Plane;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -37,6 +38,37 @@ class PlaneController extends Controller
 
         return redirect()->route('admin.flota.index')
             ->with('success', 'Avion uspešno dodat u flotu.');
+    }
+
+    public function edit(Plane $plane): Response
+    {
+        return Inertia::render('admin/flota/uredi', [
+            'plane' => $this->serialize($plane),
+        ]);
+    }
+
+    public function update(UpdatePlaneRequest $request, Plane $plane): RedirectResponse
+    {
+        $plane->update($request->validated());
+
+        return redirect()->route('admin.flota.index')
+            ->with('success', 'Avion uspešno izmenjen.');
+    }
+
+    public function destroy(Plane $plane): RedirectResponse
+    {
+        try {
+            $plane->delete();
+        } catch (\Illuminate\Database\QueryException $e) {
+            // FK constraint violation — plane is referenced by flights/services/etc.
+            if ($e->getCode() === '23503') {
+                return back()->with('error', 'Avion ne može biti obrisan jer je vezan za letove, servise ili kvarove.');
+            }
+            throw $e;
+        }
+
+        return redirect()->route('admin.flota.index')
+            ->with('success', 'Avion uspešno obrisan.');
     }
 
     private function serialize(Plane $plane): array

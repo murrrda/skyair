@@ -32,6 +32,9 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/flota', [PlaneController::class, 'index'])->name('flota.index');
     Route::get('/flota/novi', [PlaneController::class, 'create'])->name('flota.create');
     Route::post('/flota', [PlaneController::class, 'store'])->name('flota.store');
+    Route::get('/flota/{plane}/uredi', [PlaneController::class, 'edit'])->name('flota.edit');
+    Route::patch('/flota/{plane}', [PlaneController::class, 'update'])->name('flota.update');
+    Route::delete('/flota/{plane}', [PlaneController::class, 'destroy'])->name('flota.destroy');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 
