@@ -3,6 +3,7 @@ import { Search } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -10,7 +11,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -102,6 +102,15 @@ function Initials({ name }: { name: string }) {
 
 // ─── Terminate dialog ─────────────────────────────────────────────────────────
 
+const RAZLOZI_OTKAZA = [
+    'Istek ugovora na određeno vrijeme',
+    'Sporazumni raskid radnog odnosa',
+    'Otkaz od strane zaposlenika',
+    'Kršenje kodeksa ponašanja',
+    'Smanjenje broja zaposlenih',
+    'Završetak projekta ili angažmana',
+];
+
 type TerminateTarget = { user_id: number; name: string };
 
 function TerminateDialog({
@@ -113,7 +122,7 @@ function TerminateDialog({
 }) {
     const { data, setData, delete: destroy, processing, errors, reset } = useForm({
         razlog_otkaza: '',
-        datum_otkaza: '',
+        napomena_otkaza: '',
     });
 
     function handleClose() {
@@ -123,63 +132,77 @@ function TerminateDialog({
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-
-        if (!target) {
-return;
-}
-
-        destroy(`/admin/zaposleni/${target.user_id}`, {
+        if (!target) return;
+        destroy(`/admin/employee/${target.user_id}`, {
             onSuccess: handleClose,
         });
     }
 
     return (
         <Dialog open={target !== null} onOpenChange={(open) => !open && handleClose()}>
-            <DialogContent>
-                <DialogHeader>
-                    <DialogTitle>Otpusti zaposlenog</DialogTitle>
-                </DialogHeader>
+            <DialogContent className="sm:max-w-md">
+                {/* Warning icon */}
+                <div className="flex flex-col items-center gap-3 pb-2 pt-2">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-50">
+                        <span className="text-2xl">⚠️</span>
+                    </div>
+                    <DialogHeader className="items-center text-center">
+                        <DialogTitle className="text-xl">Otpuštanje zaposlenog</DialogTitle>
+                    </DialogHeader>
+                    <p className="text-center text-sm text-muted-foreground">
+                        Otpuštate <span className="font-semibold text-foreground">{target?.name}</span>. Ova akcija ne može biti poništena.
+                    </p>
+                </div>
 
-                <p className="text-sm text-muted-foreground">
-                    Otpuštate <span className="font-medium text-foreground">{target?.name}</span>. Ova akcija se ne može poništiti.
-                </p>
-
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-5">
                     <div className="space-y-1.5">
-                        <Label htmlFor="razlog_otkaza">Razlog otpuštanja *</Label>
-                        <textarea
-                            id="razlog_otkaza"
-                            rows={3}
+                        <Label className="text-xs font-semibold uppercase tracking-wide">
+                            Razlog otpuštanja <span className="text-destructive">*</span>
+                        </Label>
+                        <Select
                             value={data.razlog_otkaza}
-                            onChange={(e) => setData('razlog_otkaza', e.target.value)}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                            placeholder="Unesite razlog..."
-                            required
-                        />
+                            onValueChange={(v) => setData('razlog_otkaza', v)}
+                        >
+                            <SelectTrigger className={errors.razlog_otkaza ? 'border-destructive' : ''}>
+                                <SelectValue placeholder="Izaberite razlog..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {RAZLOZI_OTKAZA.map((r) => (
+                                    <SelectItem key={r} value={r}>{r}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                         {errors.razlog_otkaza && (
                             <p className="text-xs text-destructive">{errors.razlog_otkaza}</p>
                         )}
                     </div>
 
                     <div className="space-y-1.5">
-                        <Label htmlFor="datum_otkaza">Datum otpuštanja</Label>
-                        <Input
-                            id="datum_otkaza"
-                            type="date"
-                            value={data.datum_otkaza}
-                            onChange={(e) => setData('datum_otkaza', e.target.value)}
+                        <Label className="text-xs font-semibold uppercase tracking-wide">
+                            Napomena
+                        </Label>
+                        <textarea
+                            rows={4}
+                            value={data.napomena_otkaza}
+                            onChange={(e) => setData('napomena_otkaza', e.target.value)}
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            placeholder="Kraj ugovora na određeno vreme..."
                         />
-                        {errors.datum_otkaza && (
-                            <p className="text-xs text-destructive">{errors.datum_otkaza}</p>
+                        {errors.napomena_otkaza && (
+                            <p className="text-xs text-destructive">{errors.napomena_otkaza}</p>
                         )}
                     </div>
 
-                    <DialogFooter>
+                    <DialogFooter className="gap-2 sm:gap-0">
                         <Button type="button" variant="outline" onClick={handleClose}>
-                            Odustani
+                            Otkaži
                         </Button>
-                        <Button type="submit" variant="destructive" disabled={processing}>
-                            Otpusti
+                        <Button
+                            type="submit"
+                            disabled={processing || !data.razlog_otkaza}
+                            className="bg-[#8B1C1C] hover:bg-[#6F1616] text-white"
+                        >
+                            Potvrdi otpuštanje
                         </Button>
                     </DialogFooter>
                 </form>
@@ -195,7 +218,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
 
     function filter(key: string, value: string) {
         router.get(
-            '/admin/zaposleni',
+            '/admin/employee',
             { ...filters, [key]: value || undefined },
             { preserveState: true, preserveScroll: true, replace: true },
         );
@@ -221,7 +244,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                     </p>
                 </div>
                 <Button asChild className="bg-[#185FA5] hover:bg-[#0C447C]">
-                    <Link href="/admin/zaposleni/create">+ Dodaj zaposlenog</Link>
+                    <Link href="/admin/employee/create">+ Dodaj zaposlenog</Link>
                 </Button>
             </div>
 
@@ -320,7 +343,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
                                         <Button asChild variant="outline" size="sm">
-                                            <Link href={`/admin/zaposleni/${z.user_id}/edit`}>
+                                            <Link href={`/admin/employee/${z.user_id}/edit`}>
                                                 ✎ Izmijeni
                                             </Link>
                                         </Button>

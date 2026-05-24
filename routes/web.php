@@ -30,7 +30,7 @@ Route::post('/zaposleni/register', [RegisterController::class, 'registerEmployee
 Route::inertia('/admin/login', 'auth/admin-login')->name('admin.login');
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
-    Route::resource('zaposleni', ZaposlenController::class);
+    Route::resource('employee', ZaposlenController::class);
 });
 
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);

@@ -29,6 +29,7 @@ class Zaposlen extends Model
         'status',
         'datum_otkaza',
         'razlog_otkaza',
+        'napomena_otkaza',
     ];
 
     protected $casts = [

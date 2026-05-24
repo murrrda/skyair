@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Models\TipUgovora;
+use App\Models\User;
 use App\Models\Zaposlen;
 use App\Services\ZaposlenService;
 use Illuminate\Auth\Events\Registered;
@@ -66,7 +67,7 @@ class ZaposlenController extends Controller
             'napomena' => $validated['napomena'] ?? null,
         ]);
 
-        return redirect()->route('admin.zaposleni.index')
+        return redirect()->route('admin.employee.index')
             ->with('success', "Zaposlen {$user->first_name} {$user->last_name} uspješno registrovan. Privremena lozinka: {$tempPassword}");
     }
 
@@ -99,29 +100,29 @@ class ZaposlenController extends Controller
         ]);
     }
 
-    public function show(Zaposlen $zaposlen)
+    public function show(Zaposlen $employee)
     {
         Gate::authorize('is-admin');
 
         return Inertia::render('admin/ZaposlenShow', [
-            'zaposlen' => $zaposlen->load(['user', 'tipoviUgovora']),
+            'zaposlen' => $employee->load(['user', 'tipoviUgovora']),
         ]);
     }
 
-    public function edit(Zaposlen $zaposlen)
+    public function edit(Zaposlen $employee)
     {
         Gate::authorize('is-admin');
 
         return Inertia::render('admin/ZaposlenEdit', [
-            'zaposlen' => $zaposlen->load('user'),
+            'zaposlen' => $employee->load('user'),
         ]);
     }
 
-    public function update(Request $request, Zaposlen $zaposlen)
+    public function update(Request $request, Zaposlen $employee)
     {
         Gate::authorize('is-admin');
 
-        $user = $zaposlen->user;
+        $user = $employee->user;
 
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
@@ -144,31 +145,34 @@ class ZaposlenController extends Controller
             'phone_number' => $validated['phone_number'] ?? null,
         ]);
 
-        $zaposlen->update([
+        $employee->update([
             'role' => $validated['role'],
             'datum_zaposlenja' => $validated['datum_zaposlenja'],
         ]);
 
-        return redirect()->route('admin.zaposleni.show', $zaposlen)
+        return redirect()->route('admin.employee.show', $employee)
             ->with('success', 'Podaci zaposlenika su ažurirani.');
     }
 
-    public function destroy(Request $request, Zaposlen $zaposlen, ZaposlenService $service)
+    public function destroy(Request $request, Zaposlen $employee, ZaposlenService $service)
     {
         Gate::authorize('is-admin');
 
         $validated = $request->validate([
-            'razlog_otkaza' => ['required', 'string', 'max:1000'],
-            'datum_otkaza' => ['nullable', 'date', 'before_or_equal:today'],
+            'razlog_otkaza' => ['required', 'string', 'min:20', 'max:1000'],
+            'napomena_otkaza' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        if ($zaposlen->status === 'otkazan') {
+        $user = User::findOrFail($employee->user_id);
+        $ime  = $user->first_name.' '.$user->last_name;
+
+        if ($employee->status === 'otkazan') {
             return back()->withErrors(['razlog_otkaza' => 'Zaposlen je već otkazan.']);
         }
 
-        $service->terminate($zaposlen, $validated['razlog_otkaza'], $validated['datum_otkaza'] ?? null);
+        $service->terminate($employee, $validated['razlog_otkaza'], $validated['napomena_otkaza'] ?? null);
 
-        return redirect()->route('admin.zaposleni.index')
-            ->with('success', "Zaposlen {$zaposlen->user->first_name} {$zaposlen->user->last_name} je otkazan.");
+        return redirect()->route('admin.employee.index')
+            ->with('success', "Zaposlen {$ime} je otkazan.");
     }
 }
