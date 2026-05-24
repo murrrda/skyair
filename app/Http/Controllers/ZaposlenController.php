@@ -162,8 +162,8 @@ class ZaposlenController extends Controller
             'napomena_otkaza' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $zaposlen->load('user');
-        $ime = $zaposlen->user->first_name.' '.$zaposlen->user->last_name;
+        $user = \App\Models\User::findOrFail($zaposlen->user_id);
+        $ime  = $user->first_name.' '.$user->last_name;
 
         if ($zaposlen->status === 'otkazan') {
             return back()->withErrors(['razlog_otkaza' => 'Zaposlen je već otkazan.']);
