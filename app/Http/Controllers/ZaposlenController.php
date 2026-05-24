@@ -163,6 +163,7 @@ class ZaposlenController extends Controller
         ]);
 
         $zaposlen->load('user');
+        $ime = $zaposlen->user->first_name.' '.$zaposlen->user->last_name;
 
         if ($zaposlen->status === 'otkazan') {
             return back()->withErrors(['razlog_otkaza' => 'Zaposlen je već otkazan.']);
@@ -171,6 +172,6 @@ class ZaposlenController extends Controller
         $service->terminate($zaposlen, $validated['razlog_otkaza'], $validated['napomena_otkaza'] ?? null);
 
         return redirect()->route('admin.zaposleni.index')
-            ->with('success', "Zaposlen {$zaposlen->user->first_name} {$zaposlen->user->last_name} je otkazan.");
+            ->with('success', "Zaposlen {$ime} je otkazan.");
     }
 }
