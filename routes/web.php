@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -23,10 +24,15 @@ Route::inertia('/kupac/register', 'auth/kupac-register', [
 Route::post('/kupac/register', [RegisterController::class, 'registerCustomer'])->name('kupac.register.store');
 Route::post('/zaposleni/register', [RegisterController::class, 'registerEmployee'])->name('zaposleni.register.store');
 
-Route::inertia('/admin', 'admin/index')->name('admin.index');
 Route::inertia('/admin/login', 'auth/admin-login')->name('admin.login');
-
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);
+
+Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::inertia('/', 'admin/index')->name('index');
+    Route::get('/flota', [PlaneController::class, 'index'])->name('flota.index');
+    Route::get('/flota/novi', [PlaneController::class, 'create'])->name('flota.create');
+    Route::post('/flota', [PlaneController::class, 'store'])->name('flota.store');
+});
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 
 Route::inertia('/kupac/pretraga-letova', 'kupac/pretraga-letova')->name('kupac.pretraga-letova');
