@@ -26,7 +26,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <span className="text-[15px] font-semibold">SkyAir</span>
                     </Link>
 
-                    <nav className="flex items-center gap-7">
+                    <div className="flex items-center gap-7">
                         {NAV_LINKS.map((link) => (
                             <Link
                                 key={link.href}
@@ -41,10 +41,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                 {link.label}
                             </Link>
                         ))}
-                    </nav>
 
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F1FB] text-xs font-semibold text-[#185FA5]">
-                        {auth?.user ? getInitials(auth.user.name) : '?'}
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F1FB] text-xs font-semibold text-[#185FA5]">
+                            {auth?.user ? getInitials(auth.user.name) : '?'}
+                        </div>
                     </div>
                 </div>
             </header>
