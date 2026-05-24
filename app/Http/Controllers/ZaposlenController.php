@@ -33,6 +33,7 @@ class ZaposlenController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'date_of_birth' => ['required', 'date'],
             'address' => ['required', 'string', 'max:500'],
+            'phone_number' => ['nullable', 'string', 'max:30'],
             'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent'],
             'datum_zaposlenja' => ['required', 'date'],
             'status' => ['required', 'string', 'in:aktivan,neaktivan,otkazan'],
