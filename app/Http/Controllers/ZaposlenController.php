@@ -158,15 +158,15 @@ class ZaposlenController extends Controller
         Gate::authorize('is-admin');
 
         $validated = $request->validate([
-            'razlog_otkaza' => ['required', 'string', 'max:1000'],
-            'datum_otkaza' => ['nullable', 'date', 'before_or_equal:today'],
+            'razlog_otkaza' => ['required', 'string', 'min:20', 'max:1000'],
+            'napomena_otkaza' => ['nullable', 'string', 'max:2000'],
         ]);
 
         if ($zaposlen->status === 'otkazan') {
             return back()->withErrors(['razlog_otkaza' => 'Zaposlen je već otkazan.']);
         }
 
-        $service->terminate($zaposlen, $validated['razlog_otkaza'], $validated['datum_otkaza'] ?? null);
+        $service->terminate($zaposlen, $validated['razlog_otkaza'], $validated['napomena_otkaza'] ?? null);
 
         return redirect()->route('admin.zaposleni.index')
             ->with('success', "Zaposlen {$zaposlen->user->first_name} {$zaposlen->user->last_name} je otkazan.");
