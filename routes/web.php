@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\ZaposlenController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
@@ -76,6 +77,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+
+    Route::prefix('employee')->name('employee.')->group(function () {
+        Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
+        Route::get('/profile', [EmployeeProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('profile.update');
+    });
 });
 
 require __DIR__.'/settings.php';
