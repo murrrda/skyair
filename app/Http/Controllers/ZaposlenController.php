@@ -75,7 +75,7 @@ class ZaposlenController extends Controller
     {
         Gate::authorize('is-admin');
 
-        $query = Zaposlen::with(['user', 'tipoviUgovora']);
+        $query = Zaposlen::with(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('created_at', 'desc')]);
 
         if ($search = $request->input('search')) {
             $query->whereHas('user', fn ($q) => $q
@@ -114,7 +114,8 @@ class ZaposlenController extends Controller
         Gate::authorize('is-admin');
 
         return Inertia::render('admin/ZaposlenEdit', [
-            'zaposlen' => $employee->load('user'),
+            'zaposlen'      => $employee->load(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('created_at', 'desc')]),
+            'tipoviUgovora' => TipUgovora::all(['id', 'naziv']),
         ]);
     }
 
@@ -125,32 +126,53 @@ class ZaposlenController extends Controller
         $user = $employee->user;
 
         $validated = $request->validate([
-            'first_name' => ['required', 'string', 'max:255'],
-            'last_name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email,'.$user->id],
-            'date_of_birth' => ['required', 'date'],
-            'address' => ['nullable', 'string', 'max:500'],
-            'phone_number' => ['nullable', 'string', 'max:30'],
-            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
+            'first_name'      => ['required', 'string', 'max:255'],
+            'last_name'       => ['required', 'string', 'max:255'],
+            'email'           => ['required', 'email', 'unique:users,email,'.$user->id],
+            'date_of_birth'   => ['required', 'date'],
+            'address'         => ['nullable', 'string', 'max:500'],
+            'phone_number'    => ['nullable', 'string', 'max:30'],
+            'role'            => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
             'datum_zaposlenja' => ['required', 'date'],
+            'tip_ugovora_id'  => ['required', 'exists:tipovi_ugovora,id'],
+            'datum_isteka'    => ['nullable', 'date'],
+            'napomena'        => ['nullable', 'string'],
         ]);
 
         $user->update([
-            'first_name' => $validated['first_name'],
-            'last_name' => $validated['last_name'],
-            'name' => $validated['first_name'].' '.$validated['last_name'],
-            'email' => $validated['email'],
+            'first_name'   => $validated['first_name'],
+            'last_name'    => $validated['last_name'],
+            'name'         => $validated['first_name'].' '.$validated['last_name'],
+            'email'        => $validated['email'],
             'date_of_birth' => $validated['date_of_birth'],
-            'address' => $validated['address'] ?? null,
+            'address'      => $validated['address'] ?? null,
             'phone_number' => $validated['phone_number'] ?? null,
         ]);
 
         $employee->update([
-            'role' => $validated['role'],
+            'role'            => $validated['role'],
             'datum_zaposlenja' => $validated['datum_zaposlenja'],
         ]);
 
-        return redirect()->route('admin.employee.show', $employee)
+        $currentTipId = $employee->tipoviUgovora()
+            ->orderByPivot('created_at', 'desc')
+            ->first()
+            ?->id;
+
+        if ((int) $validated['tip_ugovora_id'] !== (int) $currentTipId) {
+            $employee->tipoviUgovora()->attach($validated['tip_ugovora_id'], [
+                'datum_potpisivanja' => $validated['datum_zaposlenja'],
+                'datum_isteka'       => $validated['datum_isteka'] ?? null,
+                'napomena'           => $validated['napomena'] ?? null,
+            ]);
+        } else {
+            $employee->tipoviUgovora()->updateExistingPivot($validated['tip_ugovora_id'], [
+                'datum_isteka' => $validated['datum_isteka'] ?? null,
+                'napomena'     => $validated['napomena'] ?? null,
+            ]);
+        }
+
+        return redirect()->route('admin.employee.index')
             ->with('success', 'Podaci zaposlenika su ažurirani.');
     }
 
