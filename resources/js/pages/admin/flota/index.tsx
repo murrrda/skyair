@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Pencil, Plane as PlaneIcon, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plane as PlaneIcon, Plus, Trash2, Wrench } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -138,6 +138,13 @@ export default function FlotaIndex() {
                                                 {statusMeta[plane.status].label}
                                             </span>
                                             <Link
+                                                href={`/admin/flota/${plane.id}/servisi`}
+                                                className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                                                aria-label={`Servisi za avion ${plane.reg_number}`}
+                                            >
+                                                <Wrench className="h-4 w-4" />
+                                            </Link>
+                                            <Link
                                                 href={`/admin/flota/${plane.id}/uredi`}
                                                 className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
                                                 aria-label={`Uredi avion ${plane.reg_number}`}
@@ -172,6 +179,10 @@ export default function FlotaIndex() {
                                             <div className="text-muted-foreground">Ukupno km</div>
                                             <div className="font-semibold">{formatNumber(plane.total_mileage)}</div>
                                         </div>
+                                    </div>
+                                    <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
+                                        <span className="text-muted-foreground">Sledeći servis za</span>
+                                        <span className="font-semibold">{formatNumber(plane.repair_service_interval)} letnih sati</span>
                                     </div>
                                 </div>
                             ))}
