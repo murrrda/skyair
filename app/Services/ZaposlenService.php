@@ -7,21 +7,19 @@ use Illuminate\Support\Facades\DB;
 
 class ZaposlenService
 {
-    public function terminate(Zaposlen $zaposlen, string $razlog, ?string $datum = null): void
+    public function terminate(Zaposlen $zaposlen, string $razlog, ?string $napomena = null): void
     {
-        $datum ??= now()->toDateString();
-
-        DB::transaction(function () use ($zaposlen, $razlog, $datum) {
+        DB::transaction(function () use ($zaposlen, $razlog, $napomena) {
             $zaposlen->update([
                 'status' => 'otkazan',
-                'datum_otkaza' => $datum,
+                'datum_otkaza' => now()->toDateString(),
                 'razlog_otkaza' => $razlog,
+                'napomena_otkaza' => $napomena,
             ]);
 
-            // Close any open risk periods for this employee.
             $zaposlen->periodiRizika()
                 ->whereNull('datum_kraja')
-                ->update(['datum_kraja' => $datum]);
+                ->update(['datum_kraja' => now()->toDateString()]);
         });
     }
 }

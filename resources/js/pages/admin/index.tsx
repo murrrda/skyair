@@ -13,7 +13,7 @@ const sections = [
         key: 'zaposleni',
         title: 'UPRAVLJANJE ZAPOSLENIMA',
         description: 'Pregled i upravljanje zaposlenima',
-        href: '/admin/zaposleni',
+        href: '/admin/employee',
         icon: Users,
     },
     {

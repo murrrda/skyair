@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Models\TipUgovora;
+use App\Models\User;
 use App\Models\Zaposlen;
 use App\Services\ZaposlenService;
 use Illuminate\Auth\Events\Registered;
