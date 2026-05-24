@@ -1,6 +1,7 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
+import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -173,6 +174,7 @@ export default function MojiTiketi() {
                         >
                             Panel zaposlenog
                         </Link>
+                        {auth.user && <NotificationBell />}
                         {auth.user && (
                             <div className="flex items-center gap-2 rounded-full border border-border bg-muted py-1 pr-3 pl-1">
                                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#1a56db] to-[#3b7ddd] text-[11px] font-semibold text-white">

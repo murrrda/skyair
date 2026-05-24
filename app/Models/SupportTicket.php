@@ -8,6 +8,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SupportTicket extends Model
 {
+    public const STATUS_LABELS = [
+        'open' => 'Otvoren',
+        'in_progress' => 'U rešavanju',
+        'requires_info' => 'Zahteva informacije',
+        'transferred' => 'Prosleđen',
+        'closed' => 'Završen',
+    ];
+
+    public static function statusLabel(?string $status): string
+    {
+        if ($status === null) {
+            return '—';
+        }
+
+        return self::STATUS_LABELS[$status] ?? $status;
+    }
+
     protected $table = 'support_ticket';
 
     protected $fillable = [
@@ -47,5 +64,10 @@ class SupportTicket extends Model
     public function activeWorkLog()
     {
         return $this->hasOne(SupportTicketWorkLog::class)->whereNull('ended_at')->latestOfMany('started_at');
+    }
+
+    public function changeLogs(): HasMany
+    {
+        return $this->hasMany(SupportTicketChangeLog::class)->orderBy('created_at');
     }
 }

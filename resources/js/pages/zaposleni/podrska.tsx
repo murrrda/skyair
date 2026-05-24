@@ -1,5 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
 import {
     Select,
@@ -184,6 +186,28 @@ export default function ZaposleniPodrska() {
     const [selectedId, setSelectedId] = useState<number | null>(tickets[0]?.id ?? null);
     const [transferTarget, setTransferTarget] = useState<string>('');
 
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.Echo) {
+            return;
+        }
+
+        const channel = window.Echo.private('support.queue');
+
+        channel.listen('.ticket.created', (payload: { number?: string; customer_name?: string; category?: string | null }) => {
+            router.reload({ only: ['tickets', 'colleagues'] });
+
+            toast(`Novi tiket #${payload.number ?? ''}`, {
+                description:
+                    (payload.category ? payload.category + ' — ' : '') +
+                    (payload.customer_name ?? 'Korisnik'),
+            });
+        });
+
+        return () => {
+            window.Echo.leave('support.queue');
+        };
+    }, []);
+
     const grouped = useMemo(() => {
         const map: Record<string, Ticket[]> = { novi: [], u_resavanju: [], zahteva_info: [], zavrseni: [] };
 
@@ -238,6 +262,7 @@ return;
                     </Link>
                     <span className="text-[13px] font-medium text-muted-foreground">Panel zaposlenog</span>
                     <div className="ml-auto flex items-center gap-3">
+                        {auth.user && <NotificationBell />}
                         {auth.user && (
                             <div className="flex items-center gap-2 rounded-full border border-border bg-muted py-1 pr-3 pl-1">
                                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#059669] to-[#047857] text-[11px] font-semibold text-white">

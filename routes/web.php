@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\EmployeeSupportController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -42,6 +43,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/{ticket}/transfer', [EmployeeSupportController::class, 'transfer'])->name('transfer');
         Route::post('/{ticket}/complete', [EmployeeSupportController::class, 'complete'])->name('complete');
     });
+
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 });
 
 require __DIR__.'/settings.php';

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\NewSupportTicketCreated;
 use App\Http\Requests\StoreSupportTicketRequest;
 use App\Models\Category;
 use App\Models\SupportTicket;
@@ -48,6 +49,9 @@ class SupportTicketController extends Controller
         $ticket->number = 'ST-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
         $ticket->status = 'open';
         $request->user()->supportTickets()->save($ticket);
+
+        $ticket->load('category', 'user');
+        NewSupportTicketCreated::dispatch($ticket);
 
         return back()->with('success', 'Support ticket submitted successfully.');
     }
