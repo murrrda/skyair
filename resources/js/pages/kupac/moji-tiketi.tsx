@@ -33,6 +33,29 @@ type WorkLog = {
     note: string | null;
 };
 
+type AgentSummary = {
+    employee_id: number;
+    name: string;
+};
+
+type RatingContext = {
+    has_additional_contact: boolean;
+    is_partial_resolution: boolean;
+};
+
+type AgentRating = {
+    employee_id: number;
+    rating: number;
+};
+
+type TicketRating = {
+    resolution_speed: number;
+    communication_quality: number | null;
+    degree_of_resolution: number | null;
+    created_at: string | null;
+    agents: AgentRating[];
+};
+
 type Ticket = {
     id: number;
     number: string;
@@ -44,6 +67,9 @@ type Ticket = {
     created_at: string | null;
     closed_at: string | null;
     work_logs: WorkLog[];
+    agents: AgentSummary[];
+    rating_context: RatingContext;
+    rating: TicketRating | null;
 };
 
 type Category = { id: number; name: string };
@@ -311,7 +337,7 @@ export default function MojiTiketi() {
 
                     <div className="rounded-xl border border-dashed border-[#1a56db]/30 bg-[#1a56db]/5 px-5 py-4 text-sm text-muted-foreground dark:border-[#7eb1f5]/30 dark:bg-[#7eb1f5]/5">
                         <span className="font-semibold text-[#1a56db] dark:text-[#7eb1f5]">U izradi:</span>{' '}
-                        NLP validacija prijave i recenzija završenih tiketa.
+                        NLP validacija prijave.
                     </div>
                 </div>
             </div>
@@ -474,14 +500,7 @@ function DetailPanel({ ticket }: { ticket: Ticket | null }) {
                 </div>
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-dashed border-[#1a56db]/30 bg-[#1a56db]/5 shadow-sm dark:border-[#7eb1f5]/30 dark:bg-[#7eb1f5]/5">
-                <div className="px-5 py-4">
-                    <div className="text-[13px] font-semibold text-[#1a56db] dark:text-[#7eb1f5]">
-                        Recenzija tiketa
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">U izradi</p>
-                </div>
-            </div>
+            {ticket.status === 'closed' && <RatingPanel ticket={ticket} />}
         </div>
     );
 }
@@ -694,5 +713,270 @@ reset();
                 </form>
             </DialogContent>
         </Dialog>
+    );
+}
+
+function StarRating({
+    value,
+    onChange,
+    readOnly = false,
+}: {
+    value: number;
+    onChange?: (v: number) => void;
+    readOnly?: boolean;
+}) {
+    const [hover, setHover] = useState(0);
+    const display = hover || value;
+
+    return (
+        <div className="inline-flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => {
+                const active = n <= display;
+
+                return (
+                    <button
+                        key={n}
+                        type="button"
+                        disabled={readOnly}
+                        onMouseEnter={() => !readOnly && setHover(n)}
+                        onMouseLeave={() => !readOnly && setHover(0)}
+                        onClick={() => !readOnly && onChange?.(n)}
+                        aria-label={`${n} ${n === 1 ? 'zvezdica' : 'zvezdica'}`}
+                        className={
+                            'text-lg leading-none transition ' +
+                            (readOnly ? 'cursor-default ' : 'cursor-pointer ') +
+                            (active
+                                ? 'text-[#f59e0b]'
+                                : 'text-muted-foreground hover:text-[#f59e0b]')
+                        }
+                    >
+                        {active ? '★' : '☆'}
+                    </button>
+                );
+            })}
+            {value > 0 && (
+                <span className="ml-1 text-xs text-muted-foreground">{value}/5</span>
+            )}
+        </div>
+    );
+}
+
+type RatingFormState = {
+    resolution_speed: number;
+    communication_quality: number;
+    degree_of_resolution: number;
+    agents: Record<number, number>;
+};
+
+function RatingPanel({ ticket }: { ticket: Ticket }) {
+    const showCommunication = ticket.rating_context.has_additional_contact;
+    const showDegree = ticket.rating_context.is_partial_resolution;
+
+    if (ticket.rating) {
+        return <SubmittedRating ticket={ticket} showCommunication={showCommunication} showDegree={showDegree} />;
+    }
+
+    if (ticket.agents.length === 0) {
+        return (
+            <div className="overflow-hidden rounded-xl border border-dashed border-border bg-card px-5 py-4 shadow-sm">
+                <div className="text-[13px] font-semibold">Recenzija tiketa</div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Nema agenata koji su radili na ovom tiketu.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <RatingForm
+            ticket={ticket}
+            showCommunication={showCommunication}
+            showDegree={showDegree}
+        />
+    );
+}
+
+function SubmittedRating({
+    ticket,
+    showCommunication,
+    showDegree,
+}: {
+    ticket: Ticket;
+    showCommunication: boolean;
+    showDegree: boolean;
+}) {
+    const r = ticket.rating!;
+    const agentsById = new Map(ticket.agents.map((a) => [a.employee_id, a.name]));
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h3 className="text-[15px] font-semibold tracking-tight">Vaša recenzija</h3>
+                <span className="text-[11px] text-muted-foreground">
+                    {formatShortDate(r.created_at)}
+                </span>
+            </div>
+            <div className="space-y-3 px-5 py-4 text-[13px]">
+                <div>
+                    <div className="mb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Zadovoljstvo po agentu
+                    </div>
+                    {r.agents.map((ar) => (
+                        <div key={ar.employee_id} className="flex items-center justify-between py-1">
+                            <span className="text-muted-foreground">
+                                {agentsById.get(ar.employee_id) ?? 'Zaposleni'}
+                            </span>
+                            <StarRating value={ar.rating} readOnly />
+                        </div>
+                    ))}
+                </div>
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                    <span className="text-muted-foreground">Brzina rešavanja</span>
+                    <StarRating value={r.resolution_speed} readOnly />
+                </div>
+                {showCommunication && r.communication_quality !== null && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Kvalitet komunikacije</span>
+                        <StarRating value={r.communication_quality} readOnly />
+                    </div>
+                )}
+                {showDegree && r.degree_of_resolution !== null && (
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Stepen rešenja</span>
+                        <StarRating value={r.degree_of_resolution} readOnly />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+function RatingForm({
+    ticket,
+    showCommunication,
+    showDegree,
+}: {
+    ticket: Ticket;
+    showCommunication: boolean;
+    showDegree: boolean;
+}) {
+    const initialAgents = useMemo<Record<number, number>>(
+        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, 0])),
+        [ticket.agents],
+    );
+
+    const form = useForm<RatingFormState>({
+        resolution_speed: 0,
+        communication_quality: 0,
+        degree_of_resolution: 0,
+        agents: initialAgents,
+    });
+    const { data, setData, processing, errors, reset, transform } = form;
+
+    const allAgentsRated = ticket.agents.every((a) => (data.agents[a.employee_id] ?? 0) > 0);
+    const canSubmit =
+        allAgentsRated &&
+        data.resolution_speed > 0 &&
+        (!showCommunication || data.communication_quality > 0) &&
+        (!showDegree || data.degree_of_resolution > 0);
+
+    const submit = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!canSubmit) {
+return;
+}
+
+        transform((d) => ({
+            resolution_speed: d.resolution_speed,
+            communication_quality: showCommunication ? d.communication_quality : null,
+            degree_of_resolution: showDegree ? d.degree_of_resolution : null,
+            agents: ticket.agents.map((a) => ({
+                employee_id: a.employee_id,
+                rating: d.agents[a.employee_id],
+            })),
+        }) as unknown as RatingFormState);
+
+        form.post(`/support-tickets/${ticket.id}/rate`, {
+            preserveScroll: true,
+            onSuccess: () => reset(),
+        });
+    };
+
+    return (
+        <form
+            onSubmit={submit}
+            className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+        >
+            <div className="border-b border-border px-5 py-4">
+                <h3 className="text-[15px] font-semibold tracking-tight">Ocenite tiket</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Vaša ocena pomaže nam da poboljšamo uslugu.
+                </p>
+            </div>
+            <div className="space-y-4 px-5 py-4 text-[13px]">
+                <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Zadovoljstvo po agentu
+                    </div>
+                    {ticket.agents.map((a) => (
+                        <div key={a.employee_id} className="flex items-center justify-between py-1.5">
+                            <span className="text-muted-foreground">{a.name}</span>
+                            <StarRating
+                                value={data.agents[a.employee_id] ?? 0}
+                                onChange={(v) =>
+                                    setData('agents', { ...data.agents, [a.employee_id]: v })
+                                }
+                            />
+                        </div>
+                    ))}
+                    {errors.agents && <InputError message={errors.agents} />}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-border pt-3">
+                    <span className="text-muted-foreground">Brzina rešavanja</span>
+                    <StarRating
+                        value={data.resolution_speed}
+                        onChange={(v) => setData('resolution_speed', v)}
+                    />
+                </div>
+                <InputError message={errors.resolution_speed} />
+
+                {showCommunication && (
+                    <>
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Kvalitet komunikacije</span>
+                            <StarRating
+                                value={data.communication_quality}
+                                onChange={(v) => setData('communication_quality', v)}
+                            />
+                        </div>
+                        <InputError message={errors.communication_quality} />
+                    </>
+                )}
+
+                {showDegree && (
+                    <>
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Stepen rešenja</span>
+                            <StarRating
+                                value={data.degree_of_resolution}
+                                onChange={(v) => setData('degree_of_resolution', v)}
+                            />
+                        </div>
+                        <InputError message={errors.degree_of_resolution} />
+                    </>
+                )}
+            </div>
+            <div className="flex justify-end border-t border-border px-5 py-3">
+                <Button
+                    type="submit"
+                    disabled={!canSubmit || processing}
+                    className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
+                >
+                    Pošalji ocenu
+                </Button>
+            </div>
+        </form>
     );
 }

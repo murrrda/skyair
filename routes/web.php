@@ -3,13 +3,13 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\EmployeeProfileController;
-use App\Http\Controllers\ZaposlenController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -66,6 +66,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
     Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
+    Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
 
     Route::prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
         Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');
