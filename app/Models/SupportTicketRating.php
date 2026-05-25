@@ -13,8 +13,11 @@ class SupportTicketRating extends Model
     protected $fillable = [
         'support_ticket_id',
         'resolution_speed',
+        'resolution_speed_comment',
         'communication_quality',
+        'communication_quality_comment',
         'degree_of_resolution',
+        'degree_of_resolution_comment',
     ];
 
     protected $casts = [

@@ -24,6 +24,24 @@ type WorkLog = {
     note: string | null;
 };
 
+type AgentRatingEntry = {
+    employee_id: number;
+    employee_name: string;
+    rating: number;
+    comment: string | null;
+};
+
+type TicketRating = {
+    resolution_speed: number;
+    resolution_speed_comment: string | null;
+    communication_quality: number | null;
+    communication_quality_comment: string | null;
+    degree_of_resolution: number | null;
+    degree_of_resolution_comment: string | null;
+    created_at: string | null;
+    agents: AgentRatingEntry[];
+};
+
 type Ticket = {
     id: number;
     number: string;
@@ -37,6 +55,7 @@ type Ticket = {
     customer_name: string;
     current_owner: { employee_id: number; name: string; started_at: string | null } | null;
     work_logs: WorkLog[];
+    rating: TicketRating | null;
 };
 
 type Colleague = {
@@ -370,6 +389,11 @@ return;
                             <div className="lg:col-span-2">
                                 <WorkLogCard ticket={selected} />
                             </div>
+                            {selected.rating && (
+                                <div className="lg:col-span-2">
+                                    <CustomerRatingCard ticket={selected} />
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
@@ -724,6 +748,116 @@ function WorkLogCard({ ticket }: { ticket: Ticket }) {
                         </tbody>
                     </table>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function ReadOnlyStars({ value }: { value: number }) {
+    return (
+        <span className="inline-flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                    key={n}
+                    className={n <= value ? 'text-[#f59e0b]' : 'text-muted-foreground'}
+                >
+                    {n <= value ? '★' : '☆'}
+                </span>
+            ))}
+            <span className="ml-1 text-[11px] text-muted-foreground">{value}/5</span>
+        </span>
+    );
+}
+
+function RatingDimension({
+    label,
+    value,
+    comment,
+}: {
+    label: string;
+    value: number | null;
+    comment: string | null;
+}) {
+    if (value === null) {
+return null;
+}
+
+    return (
+        <div className="space-y-1 border-b border-border py-2 last:border-b-0">
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{label}</span>
+                <ReadOnlyStars value={value} />
+            </div>
+            {comment && (
+                <p className="rounded-md border border-border bg-muted px-2.5 py-1.5 text-[12px] leading-relaxed text-foreground">
+                    {comment}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function CustomerRatingCard({ ticket }: { ticket: Ticket }) {
+    const r = ticket.rating!;
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h3 className="text-[15px] font-semibold tracking-tight">
+                    Recenzija korisnika — #{ticket.number}
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                    {formatDateTime(r.created_at)}
+                </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 px-5 py-4 text-[13px] md:grid-cols-2">
+                <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Po agentu
+                    </div>
+                    {r.agents.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">
+                            Korisnik nije ocenio nijednog agenta.
+                        </p>
+                    ) : (
+                        r.agents.map((ar) => (
+                            <div
+                                key={ar.employee_id}
+                                className="space-y-1 border-b border-border py-2 last:border-b-0"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium">{ar.employee_name}</span>
+                                    <ReadOnlyStars value={ar.rating} />
+                                </div>
+                                {ar.comment && (
+                                    <p className="rounded-md border border-border bg-muted px-2.5 py-1.5 text-[12px] leading-relaxed text-foreground">
+                                        {ar.comment}
+                                    </p>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+                <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Po kategoriji
+                    </div>
+                    <RatingDimension
+                        label="Brzina rešavanja"
+                        value={r.resolution_speed}
+                        comment={r.resolution_speed_comment}
+                    />
+                    <RatingDimension
+                        label="Kvalitet komunikacije"
+                        value={r.communication_quality}
+                        comment={r.communication_quality_comment}
+                    />
+                    <RatingDimension
+                        label="Stepen rešenja"
+                        value={r.degree_of_resolution}
+                        comment={r.degree_of_resolution_comment}
+                    />
+                </div>
             </div>
         </div>
     );

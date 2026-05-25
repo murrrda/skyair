@@ -45,12 +45,16 @@ type RatingContext = {
 type AgentRating = {
     employee_id: number;
     rating: number;
+    comment: string | null;
 };
 
 type TicketRating = {
     resolution_speed: number;
+    resolution_speed_comment: string | null;
     communication_quality: number | null;
+    communication_quality_comment: string | null;
     degree_of_resolution: number | null;
+    degree_of_resolution_comment: string | null;
     created_at: string | null;
     agents: AgentRating[];
 };
@@ -715,6 +719,35 @@ reset();
     );
 }
 
+function CommentField({
+    value,
+    onChange,
+    disabled = false,
+    placeholder = 'Opcionalan komentar (do 500 karaktera)',
+}: {
+    value: string;
+    onChange: (v: string) => void;
+    disabled?: boolean;
+    placeholder?: string;
+}) {
+    return (
+        <div className="space-y-1">
+            <textarea
+                value={value}
+                onChange={(e) => onChange(e.target.value.slice(0, 500))}
+                disabled={disabled}
+                placeholder={placeholder}
+                rows={2}
+                maxLength={500}
+                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-[12px] leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#1a56db] focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 dark:focus:border-[#7eb1f5]"
+            />
+            <div className="flex justify-end text-[10px] text-muted-foreground">
+                {value.length}/500
+            </div>
+        </div>
+    );
+}
+
 function StarRating({
     value,
     onChange,
@@ -762,9 +795,13 @@ function StarRating({
 
 type RatingFormState = {
     resolution_speed: number;
+    resolution_speed_comment: string;
     communication_quality: number;
+    communication_quality_comment: string;
     degree_of_resolution: number;
+    degree_of_resolution_comment: string;
     agents: Record<number, number>;
+    agentComments: Record<number, string>;
     skipped: Record<number, boolean>;
 };
 
@@ -797,7 +834,7 @@ function SubmittedRating({
     showCommunication: boolean;
 }) {
     const r = ticket.rating!;
-    const ratingByAgent = new Map(r.agents.map((ar) => [ar.employee_id, ar.rating]));
+    const ratingByAgent = new Map(r.agents.map((ar) => [ar.employee_id, ar]));
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -813,39 +850,67 @@ function SubmittedRating({
                         Zadovoljstvo po agentu
                     </div>
                     {ticket.agents.map((a) => {
-                        const rating = ratingByAgent.get(a.employee_id);
+                        const entry = ratingByAgent.get(a.employee_id);
 
                         return (
                             <div
                                 key={a.employee_id}
-                                className="flex items-center justify-between py-1"
+                                className="space-y-1 border-b border-border py-1.5 last:border-b-0 last:pb-0"
                             >
-                                <span className="text-muted-foreground">{a.name}</span>
-                                {rating ? (
-                                    <StarRating value={rating} readOnly />
-                                ) : (
-                                    <span className="text-[11px] text-muted-foreground italic">
-                                        Preskočen
-                                    </span>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-muted-foreground">{a.name}</span>
+                                    {entry ? (
+                                        <StarRating value={entry.rating} readOnly />
+                                    ) : (
+                                        <span className="text-[11px] text-muted-foreground italic">
+                                            Preskočen
+                                        </span>
+                                    )}
+                                </div>
+                                {entry?.comment && (
+                                    <p className="rounded-md border border-border bg-muted px-2 py-1 text-[12px] leading-relaxed text-foreground">
+                                        {entry.comment}
+                                    </p>
                                 )}
                             </div>
                         );
                     })}
                 </div>
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                    <span className="text-muted-foreground">Brzina rešavanja</span>
-                    <StarRating value={r.resolution_speed} readOnly />
+                <div className="space-y-1 border-t border-border pt-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Brzina rešavanja</span>
+                        <StarRating value={r.resolution_speed} readOnly />
+                    </div>
+                    {r.resolution_speed_comment && (
+                        <p className="rounded-md border border-border bg-muted px-2 py-1 text-[12px] leading-relaxed text-foreground">
+                            {r.resolution_speed_comment}
+                        </p>
+                    )}
                 </div>
                 {showCommunication && r.communication_quality !== null && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Kvalitet komunikacije</span>
-                        <StarRating value={r.communication_quality} readOnly />
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Kvalitet komunikacije</span>
+                            <StarRating value={r.communication_quality} readOnly />
+                        </div>
+                        {r.communication_quality_comment && (
+                            <p className="rounded-md border border-border bg-muted px-2 py-1 text-[12px] leading-relaxed text-foreground">
+                                {r.communication_quality_comment}
+                            </p>
+                        )}
                     </div>
                 )}
                 {r.degree_of_resolution !== null && (
-                    <div className="flex items-center justify-between">
-                        <span className="text-muted-foreground">Stepen rešenja</span>
-                        <StarRating value={r.degree_of_resolution} readOnly />
+                    <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground">Stepen rešenja</span>
+                            <StarRating value={r.degree_of_resolution} readOnly />
+                        </div>
+                        {r.degree_of_resolution_comment && (
+                            <p className="rounded-md border border-border bg-muted px-2 py-1 text-[12px] leading-relaxed text-foreground">
+                                {r.degree_of_resolution_comment}
+                            </p>
+                        )}
                     </div>
                 )}
             </div>
@@ -868,12 +933,20 @@ function RatingForm({
         () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, false])),
         [ticket.agents],
     );
+    const initialAgentComments = useMemo<Record<number, string>>(
+        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, ''])),
+        [ticket.agents],
+    );
 
     const form = useForm<RatingFormState>({
         resolution_speed: 0,
+        resolution_speed_comment: '',
         communication_quality: 0,
+        communication_quality_comment: '',
         degree_of_resolution: 0,
+        degree_of_resolution_comment: '',
         agents: initialAgents,
+        agentComments: initialAgentComments,
         skipped: initialSkipped,
     });
     const { data, setData, processing, errors, reset, transform } = form;
@@ -913,13 +986,20 @@ return;
 
         transform((d) => ({
             resolution_speed: d.resolution_speed,
+            resolution_speed_comment: d.resolution_speed_comment || null,
             communication_quality: showCommunication ? d.communication_quality : null,
+            communication_quality_comment:
+                showCommunication && d.communication_quality_comment
+                    ? d.communication_quality_comment
+                    : null,
             degree_of_resolution: d.degree_of_resolution,
+            degree_of_resolution_comment: d.degree_of_resolution_comment || null,
             agents: ticket.agents
                 .filter((a) => !d.skipped[a.employee_id] && (d.agents[a.employee_id] ?? 0) > 0)
                 .map((a) => ({
                     employee_id: a.employee_id,
                     rating: d.agents[a.employee_id],
+                    comment: d.agentComments[a.employee_id] || null,
                 })),
         }) as unknown as RatingFormState);
 
@@ -954,70 +1034,100 @@ return;
                         return (
                             <div
                                 key={a.employee_id}
-                                className="flex items-center justify-between gap-3 py-1.5"
+                                className="space-y-1.5 border-b border-border py-2 last:border-b-0 last:pb-0"
                             >
-                                <span
-                                    className={
-                                        'text-muted-foreground ' +
-                                        (skipped ? 'opacity-50 line-through' : '')
-                                    }
-                                >
-                                    {a.name}
-                                </span>
-                                <div className="flex items-center gap-3">
-                                    <div className={skipped ? 'pointer-events-none opacity-40' : ''}>
-                                        <StarRating
-                                            value={data.agents[a.employee_id] ?? 0}
-                                            onChange={(v) => setAgentRating(a.employee_id, v)}
-                                            readOnly={skipped}
-                                        />
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => toggleSkip(a.employee_id)}
+                                <div className="flex items-center justify-between gap-3">
+                                    <span
                                         className={
-                                            'rounded border px-2 py-0.5 text-[11px] font-medium transition ' +
-                                            (skipped
-                                                ? 'border-[#1a56db] bg-[#1a56db] text-white dark:border-[#7eb1f5] dark:bg-[#7eb1f5] dark:text-background'
-                                                : 'border-border bg-card text-muted-foreground hover:text-foreground')
+                                            'text-muted-foreground ' +
+                                            (skipped ? 'opacity-50 line-through' : '')
                                         }
                                     >
-                                        {skipped ? 'Preskočen' : 'Preskoči'}
-                                    </button>
+                                        {a.name}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <div className={skipped ? 'pointer-events-none opacity-40' : ''}>
+                                            <StarRating
+                                                value={data.agents[a.employee_id] ?? 0}
+                                                onChange={(v) => setAgentRating(a.employee_id, v)}
+                                                readOnly={skipped}
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => toggleSkip(a.employee_id)}
+                                            className={
+                                                'rounded border px-2 py-0.5 text-[11px] font-medium transition ' +
+                                                (skipped
+                                                    ? 'border-[#1a56db] bg-[#1a56db] text-white dark:border-[#7eb1f5] dark:bg-[#7eb1f5] dark:text-background'
+                                                    : 'border-border bg-card text-muted-foreground hover:text-foreground')
+                                            }
+                                        >
+                                            {skipped ? 'Preskočen' : 'Preskoči'}
+                                        </button>
+                                    </div>
                                 </div>
+                                <CommentField
+                                    value={data.agentComments[a.employee_id] ?? ''}
+                                    onChange={(v) =>
+                                        setData('agentComments', {
+                                            ...data.agentComments,
+                                            [a.employee_id]: v,
+                                        })
+                                    }
+                                    disabled={skipped}
+                                />
                             </div>
                         );
                     })}
                     {errors.agents && <InputError message={errors.agents} />}
                 </div>
 
-                <div className="flex items-center justify-between border-t border-border pt-3">
-                    <span className="text-muted-foreground">Brzina rešavanja</span>
-                    <StarRating
-                        value={data.resolution_speed}
-                        onChange={(v) => setData('resolution_speed', v)}
+                <div className="space-y-1.5 border-t border-border pt-3">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Brzina rešavanja</span>
+                        <StarRating
+                            value={data.resolution_speed}
+                            onChange={(v) => setData('resolution_speed', v)}
+                        />
+                    </div>
+                    <CommentField
+                        value={data.resolution_speed_comment}
+                        onChange={(v) => setData('resolution_speed_comment', v)}
                     />
                 </div>
                 <InputError message={errors.resolution_speed} />
 
                 {showCommunication && (
                     <>
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Kvalitet komunikacije</span>
-                            <StarRating
-                                value={data.communication_quality}
-                                onChange={(v) => setData('communication_quality', v)}
+                        <div className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                                <span className="text-muted-foreground">Kvalitet komunikacije</span>
+                                <StarRating
+                                    value={data.communication_quality}
+                                    onChange={(v) => setData('communication_quality', v)}
+                                />
+                            </div>
+                            <CommentField
+                                value={data.communication_quality_comment}
+                                onChange={(v) => setData('communication_quality_comment', v)}
                             />
                         </div>
                         <InputError message={errors.communication_quality} />
                     </>
                 )}
 
-                <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Stepen rešenja</span>
-                    <StarRating
-                        value={data.degree_of_resolution}
-                        onChange={(v) => setData('degree_of_resolution', v)}
+                <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">Stepen rešenja</span>
+                        <StarRating
+                            value={data.degree_of_resolution}
+                            onChange={(v) => setData('degree_of_resolution', v)}
+                        />
+                    </div>
+                    <CommentField
+                        value={data.degree_of_resolution_comment}
+                        onChange={(v) => setData('degree_of_resolution_comment', v)}
                     />
                 </div>
                 <InputError message={errors.degree_of_resolution} />

@@ -332,6 +332,170 @@ class SupportTicketRatingTest extends TestCase
         $this->assertDatabaseCount('support_ticket_rating_agent', 0);
     }
 
+    public function test_comments_are_persisted_per_agent_and_per_category(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'requested_info');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->actingAs($customer)
+            ->post("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'resolution_speed_comment' => 'Brzo i efikasno.',
+                'communication_quality' => 4,
+                'communication_quality_comment' => 'Mogla je biti jasnija.',
+                'degree_of_resolution' => 5,
+                'degree_of_resolution_comment' => 'Problem u potpunosti rešen.',
+                'agents' => [[
+                    'employee_id' => $agent->id,
+                    'rating' => 5,
+                    'comment' => 'Veoma profesionalan.',
+                ]],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('support_ticket_rating', [
+            'support_ticket_id' => $ticket->id,
+            'resolution_speed_comment' => 'Brzo i efikasno.',
+            'communication_quality_comment' => 'Mogla je biti jasnija.',
+            'degree_of_resolution_comment' => 'Problem u potpunosti rešen.',
+        ]);
+        $this->assertDatabaseHas('support_ticket_rating_agent', [
+            'employee_id' => $agent->id,
+            'comment' => 'Veoma profesionalan.',
+        ]);
+    }
+
+    public function test_comments_are_optional_and_blank_becomes_null(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->actingAs($customer)
+            ->post("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'resolution_speed_comment' => '   ',
+                'degree_of_resolution' => 5,
+                'degree_of_resolution_comment' => '',
+                'agents' => [[
+                    'employee_id' => $agent->id,
+                    'rating' => 5,
+                    'comment' => null,
+                ]],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('support_ticket_rating', [
+            'support_ticket_id' => $ticket->id,
+            'resolution_speed_comment' => null,
+            'degree_of_resolution_comment' => null,
+        ]);
+        $this->assertDatabaseHas('support_ticket_rating_agent', [
+            'employee_id' => $agent->id,
+            'comment' => null,
+        ]);
+    }
+
+    public function test_comment_over_500_chars_is_rejected(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $tooLong = str_repeat('a', 501);
+
+        $this->actingAs($customer)
+            ->from('/support-tickets')
+            ->post("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'resolution_speed_comment' => $tooLong,
+                'degree_of_resolution' => 5,
+                'agents' => [['employee_id' => $agent->id, 'rating' => 5]],
+            ])
+            ->assertSessionHasErrors('resolution_speed_comment');
+    }
+
+    public function test_agent_comment_over_500_chars_is_rejected(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $tooLong = str_repeat('b', 501);
+
+        $this->actingAs($customer)
+            ->from('/support-tickets')
+            ->post("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'degree_of_resolution' => 5,
+                'agents' => [[
+                    'employee_id' => $agent->id,
+                    'rating' => 5,
+                    'comment' => $tooLong,
+                ]],
+            ])
+            ->assertSessionHasErrors('agents.0.comment');
+    }
+
+    public function test_communication_comment_dropped_when_no_additional_contact(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->actingAs($customer)
+            ->post("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'communication_quality' => 5,
+                'communication_quality_comment' => 'Komentar koji ne treba sačuvati.',
+                'degree_of_resolution' => 5,
+                'agents' => [['employee_id' => $agent->id, 'rating' => 5]],
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('support_ticket_rating', [
+            'support_ticket_id' => $ticket->id,
+            'communication_quality' => null,
+            'communication_quality_comment' => null,
+        ]);
+    }
+
+    public function test_employee_panel_exposes_customer_rating_with_comments(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent('Petar', 'Petrović');
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->actingAs($customer)->post("/support-tickets/{$ticket->id}/rate", [
+            'resolution_speed' => 5,
+            'resolution_speed_comment' => 'Veoma brzo.',
+            'degree_of_resolution' => 5,
+            'agents' => [[
+                'employee_id' => $agent->id,
+                'rating' => 4,
+                'comment' => 'Korektno.',
+            ]],
+        ]);
+
+        $this->actingAs($agent)
+            ->get('/zaposleni/podrska')
+            ->assertInertia(fn ($page) => $page
+                ->component('zaposleni/podrska')
+                ->where('tickets.0.rating.resolution_speed', 5)
+                ->where('tickets.0.rating.resolution_speed_comment', 'Veoma brzo.')
+                ->where('tickets.0.rating.agents.0.employee_name', 'Petar Petrović')
+                ->where('tickets.0.rating.agents.0.comment', 'Korektno.')
+            );
+    }
+
     public function test_guest_cannot_rate_a_ticket(): void
     {
         $customer = $this->makeCustomer();
