@@ -53,4 +53,14 @@ class Flight extends Model
     {
         return $this->hasMany(PlaneChange::class);
     }
+
+    public function tickets()
+    {
+        return $this->hasMany(FlightTicket::class);
+    }
+
+    public function layovers()
+    {
+        return $this->hasManyThrough(Layover::class, Route::class, 'id', 'route_id', 'route_id', 'id');
+    }
 }

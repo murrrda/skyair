@@ -3,13 +3,15 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\EmployeeProfileController;
-use App\Http\Controllers\ZaposlenController;
 use App\Http\Controllers\EmployeeSupportController;
+use App\Http\Controllers\FlightController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
 
@@ -62,8 +64,20 @@ Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac
 
 Route::inertia('/kupac/pretraga-letova', 'kupac/pretraga-letova')->name('kupac.pretraga-letova');
 
+Route::get('/kupac/rezultati-pretrage', [FlightController::class, 'index'])->name('kupac.rezultati-pretrage');
+Route::get('/kupac/detalji-leta/{flight}', [FlightController::class, 'show'])->name('kupac.detalji-leta');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+
+    Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
+    Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
+    Route::post('/kupac/placanje', [ReservationController::class, 'store'])->name('kupac.placanje.store');
+    Route::post('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'pay'])->name('kupac.rezervacija.plati');
+    Route::get('/kupac/detalji-rezervacije/{reservation}', [ReservationController::class, 'details'])->name('kupac.detalji-rezervacije');
+    Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
+    Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
+    Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
     Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
     Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
 
