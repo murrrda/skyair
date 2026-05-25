@@ -16,8 +16,8 @@ class StoreSupportTicketRatingRequest extends FormRequest
         return [
             'resolution_speed' => ['required', 'integer', 'between:1,5'],
             'communication_quality' => ['nullable', 'integer', 'between:1,5'],
-            'degree_of_resolution' => ['nullable', 'integer', 'between:1,5'],
-            'agents' => ['required', 'array', 'min:1'],
+            'degree_of_resolution' => ['required', 'integer', 'between:1,5'],
+            'agents' => ['present', 'array'],
             'agents.*.employee_id' => ['required', 'integer', 'exists:zaposleni,user_id'],
             'agents.*.rating' => ['required', 'integer', 'between:1,5'],
         ];

@@ -40,7 +40,6 @@ type AgentSummary = {
 
 type RatingContext = {
     has_additional_contact: boolean;
-    is_partial_resolution: boolean;
 };
 
 type AgentRating = {
@@ -766,14 +765,14 @@ type RatingFormState = {
     communication_quality: number;
     degree_of_resolution: number;
     agents: Record<number, number>;
+    skipped: Record<number, boolean>;
 };
 
 function RatingPanel({ ticket }: { ticket: Ticket }) {
     const showCommunication = ticket.rating_context.has_additional_contact;
-    const showDegree = ticket.rating_context.is_partial_resolution;
 
     if (ticket.rating) {
-        return <SubmittedRating ticket={ticket} showCommunication={showCommunication} showDegree={showDegree} />;
+        return <SubmittedRating ticket={ticket} showCommunication={showCommunication} />;
     }
 
     if (ticket.agents.length === 0) {
@@ -787,26 +786,18 @@ function RatingPanel({ ticket }: { ticket: Ticket }) {
         );
     }
 
-    return (
-        <RatingForm
-            ticket={ticket}
-            showCommunication={showCommunication}
-            showDegree={showDegree}
-        />
-    );
+    return <RatingForm ticket={ticket} showCommunication={showCommunication} />;
 }
 
 function SubmittedRating({
     ticket,
     showCommunication,
-    showDegree,
 }: {
     ticket: Ticket;
     showCommunication: boolean;
-    showDegree: boolean;
 }) {
     const r = ticket.rating!;
-    const agentsById = new Map(ticket.agents.map((a) => [a.employee_id, a.name]));
+    const ratingByAgent = new Map(r.agents.map((ar) => [ar.employee_id, ar.rating]));
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -821,14 +812,25 @@ function SubmittedRating({
                     <div className="mb-1 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                         Zadovoljstvo po agentu
                     </div>
-                    {r.agents.map((ar) => (
-                        <div key={ar.employee_id} className="flex items-center justify-between py-1">
-                            <span className="text-muted-foreground">
-                                {agentsById.get(ar.employee_id) ?? 'Zaposleni'}
-                            </span>
-                            <StarRating value={ar.rating} readOnly />
-                        </div>
-                    ))}
+                    {ticket.agents.map((a) => {
+                        const rating = ratingByAgent.get(a.employee_id);
+
+                        return (
+                            <div
+                                key={a.employee_id}
+                                className="flex items-center justify-between py-1"
+                            >
+                                <span className="text-muted-foreground">{a.name}</span>
+                                {rating ? (
+                                    <StarRating value={rating} readOnly />
+                                ) : (
+                                    <span className="text-[11px] text-muted-foreground italic">
+                                        Preskočen
+                                    </span>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className="flex items-center justify-between border-t border-border pt-3">
                     <span className="text-muted-foreground">Brzina rešavanja</span>
@@ -840,7 +842,7 @@ function SubmittedRating({
                         <StarRating value={r.communication_quality} readOnly />
                     </div>
                 )}
-                {showDegree && r.degree_of_resolution !== null && (
+                {r.degree_of_resolution !== null && (
                     <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Stepen rešenja</span>
                         <StarRating value={r.degree_of_resolution} readOnly />
@@ -854,14 +856,16 @@ function SubmittedRating({
 function RatingForm({
     ticket,
     showCommunication,
-    showDegree,
 }: {
     ticket: Ticket;
     showCommunication: boolean;
-    showDegree: boolean;
 }) {
     const initialAgents = useMemo<Record<number, number>>(
         () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, 0])),
+        [ticket.agents],
+    );
+    const initialSkipped = useMemo<Record<number, boolean>>(
+        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, false])),
         [ticket.agents],
     );
 
@@ -870,15 +874,35 @@ function RatingForm({
         communication_quality: 0,
         degree_of_resolution: 0,
         agents: initialAgents,
+        skipped: initialSkipped,
     });
     const { data, setData, processing, errors, reset, transform } = form;
 
-    const allAgentsRated = ticket.agents.every((a) => (data.agents[a.employee_id] ?? 0) > 0);
+    const eachAgentResolved = ticket.agents.every(
+        (a) => data.skipped[a.employee_id] || (data.agents[a.employee_id] ?? 0) > 0,
+    );
     const canSubmit =
-        allAgentsRated &&
+        eachAgentResolved &&
         data.resolution_speed > 0 &&
-        (!showCommunication || data.communication_quality > 0) &&
-        (!showDegree || data.degree_of_resolution > 0);
+        data.degree_of_resolution > 0 &&
+        (!showCommunication || data.communication_quality > 0);
+
+    const toggleSkip = (employeeId: number) => {
+        const nextSkipped = !data.skipped[employeeId];
+        setData('skipped', { ...data.skipped, [employeeId]: nextSkipped });
+
+        if (nextSkipped) {
+            setData('agents', { ...data.agents, [employeeId]: 0 });
+        }
+    };
+
+    const setAgentRating = (employeeId: number, rating: number) => {
+        setData('agents', { ...data.agents, [employeeId]: rating });
+
+        if (data.skipped[employeeId]) {
+            setData('skipped', { ...data.skipped, [employeeId]: false });
+        }
+    };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -890,11 +914,13 @@ return;
         transform((d) => ({
             resolution_speed: d.resolution_speed,
             communication_quality: showCommunication ? d.communication_quality : null,
-            degree_of_resolution: showDegree ? d.degree_of_resolution : null,
-            agents: ticket.agents.map((a) => ({
-                employee_id: a.employee_id,
-                rating: d.agents[a.employee_id],
-            })),
+            degree_of_resolution: d.degree_of_resolution,
+            agents: ticket.agents
+                .filter((a) => !d.skipped[a.employee_id] && (d.agents[a.employee_id] ?? 0) > 0)
+                .map((a) => ({
+                    employee_id: a.employee_id,
+                    rating: d.agents[a.employee_id],
+                })),
         }) as unknown as RatingFormState);
 
         form.post(`/support-tickets/${ticket.id}/rate`, {
@@ -919,17 +945,49 @@ return;
                     <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
                         Zadovoljstvo po agentu
                     </div>
-                    {ticket.agents.map((a) => (
-                        <div key={a.employee_id} className="flex items-center justify-between py-1.5">
-                            <span className="text-muted-foreground">{a.name}</span>
-                            <StarRating
-                                value={data.agents[a.employee_id] ?? 0}
-                                onChange={(v) =>
-                                    setData('agents', { ...data.agents, [a.employee_id]: v })
-                                }
-                            />
-                        </div>
-                    ))}
+                    <p className="mb-2 text-xs text-muted-foreground">
+                        Preskočite agente sa kojima niste imali dovoljan kontakt.
+                    </p>
+                    {ticket.agents.map((a) => {
+                        const skipped = !!data.skipped[a.employee_id];
+
+                        return (
+                            <div
+                                key={a.employee_id}
+                                className="flex items-center justify-between gap-3 py-1.5"
+                            >
+                                <span
+                                    className={
+                                        'text-muted-foreground ' +
+                                        (skipped ? 'opacity-50 line-through' : '')
+                                    }
+                                >
+                                    {a.name}
+                                </span>
+                                <div className="flex items-center gap-3">
+                                    <div className={skipped ? 'pointer-events-none opacity-40' : ''}>
+                                        <StarRating
+                                            value={data.agents[a.employee_id] ?? 0}
+                                            onChange={(v) => setAgentRating(a.employee_id, v)}
+                                            readOnly={skipped}
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => toggleSkip(a.employee_id)}
+                                        className={
+                                            'rounded border px-2 py-0.5 text-[11px] font-medium transition ' +
+                                            (skipped
+                                                ? 'border-[#1a56db] bg-[#1a56db] text-white dark:border-[#7eb1f5] dark:bg-[#7eb1f5] dark:text-background'
+                                                : 'border-border bg-card text-muted-foreground hover:text-foreground')
+                                        }
+                                    >
+                                        {skipped ? 'Preskočen' : 'Preskoči'}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                     {errors.agents && <InputError message={errors.agents} />}
                 </div>
 
@@ -955,18 +1013,15 @@ return;
                     </>
                 )}
 
-                {showDegree && (
-                    <>
-                        <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground">Stepen rešenja</span>
-                            <StarRating
-                                value={data.degree_of_resolution}
-                                onChange={(v) => setData('degree_of_resolution', v)}
-                            />
-                        </div>
-                        <InputError message={errors.degree_of_resolution} />
-                    </>
-                )}
+                <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Stepen rešenja</span>
+                    <StarRating
+                        value={data.degree_of_resolution}
+                        onChange={(v) => setData('degree_of_resolution', v)}
+                    />
+                </div>
+                <InputError message={errors.degree_of_resolution} />
+
             </div>
             <div className="flex justify-end border-t border-border px-5 py-3">
                 <Button

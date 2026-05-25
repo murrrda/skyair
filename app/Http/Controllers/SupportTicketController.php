@@ -24,7 +24,7 @@ class SupportTicketController extends Controller
             ->supportTickets()
             ->with([
                 'category:id,name',
-                'workLogs.employee.user:id,first_name,last_name',
+                'workLogs.employee.user:id,first_name,last_name,name',
                 'rating.agentRatings',
             ])
             ->latest('created_at')
@@ -105,10 +105,9 @@ class SupportTicketController extends Controller
         }
 
         $hasAdditionalContact = $ticket->workLogs->contains(fn ($log) => $log->action === 'requested_info');
-        $isPartialResolution = $ticket->outcome === 'partial';
 
         $communication = $hasAdditionalContact ? ($validated['communication_quality'] ?? null) : null;
-        $degree = $isPartialResolution ? ($validated['degree_of_resolution'] ?? null) : null;
+        $degree = $validated['degree_of_resolution'] ?? null;
 
         if ($hasAdditionalContact && $communication === null) {
             throw ValidationException::withMessages([
@@ -116,7 +115,7 @@ class SupportTicketController extends Controller
             ]);
         }
 
-        if ($isPartialResolution && $degree === null) {
+        if ($degree === null) {
             throw ValidationException::withMessages([
                 'degree_of_resolution' => 'Ocena stepena rešenja je obavezna.',
             ]);
@@ -150,19 +149,19 @@ class SupportTicketController extends Controller
             ->map(function ($logs) {
                 $first = $logs->first();
                 $user = $first->employee?->user;
-                $name = $user
+                $full = $user
                     ? trim(($user->first_name ?? '').' '.($user->last_name ?? ''))
-                    : null;
+                    : '';
+                $name = $full !== '' ? $full : ($user?->name ?? 'Zaposleni');
 
                 return [
                     'employee_id' => (int) $first->employee_id,
-                    'name' => $name ?: 'Zaposleni',
+                    'name' => $name,
                 ];
             })
             ->values();
 
         $hasAdditionalContact = $ticket->workLogs->contains(fn ($log) => $log->action === 'requested_info');
-        $isPartialResolution = $ticket->outcome === 'partial';
 
         $rating = null;
         if ($ticket->rating) {
@@ -191,14 +190,15 @@ class SupportTicketController extends Controller
             'closed_at' => $ticket->closed_at?->toIso8601String(),
             'work_logs' => $ticket->workLogs->map(function ($log) {
                 $user = $log->employee?->user;
-                $name = $user
+                $full = $user
                     ? trim(($user->first_name ?? '').' '.($user->last_name ?? ''))
-                    : null;
+                    : '';
+                $name = $full !== '' ? $full : ($user?->name ?? 'Zaposleni');
 
                 return [
                     'id' => $log->id,
                     'employee_id' => $log->employee_id,
-                    'employee_name' => $name ?: 'Zaposleni',
+                    'employee_name' => $name,
                     'started_at' => $log->started_at?->toIso8601String(),
                     'ended_at' => $log->ended_at?->toIso8601String(),
                     'action' => $log->action,
@@ -208,7 +208,6 @@ class SupportTicketController extends Controller
             'agents' => $agents,
             'rating_context' => [
                 'has_additional_contact' => $hasAdditionalContact,
-                'is_partial_resolution' => $isPartialResolution,
             ],
             'rating' => $rating,
         ];
