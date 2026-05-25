@@ -13,6 +13,7 @@ class SupportTicketRatingAgent extends Model
         'support_ticket_rating_id',
         'employee_id',
         'rating',
+        'comment',
     ];
 
     protected $casts = [

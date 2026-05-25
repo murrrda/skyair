@@ -121,12 +121,17 @@ class SupportTicketController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($ticket, $validated, $communication, $degree) {
+        DB::transaction(function () use ($ticket, $validated, $communication, $degree, $hasAdditionalContact) {
             $rating = SupportTicketRating::create([
                 'support_ticket_id' => $ticket->id,
                 'resolution_speed' => $validated['resolution_speed'],
+                'resolution_speed_comment' => $this->normalizeComment($validated['resolution_speed_comment'] ?? null),
                 'communication_quality' => $communication,
+                'communication_quality_comment' => $hasAdditionalContact
+                    ? $this->normalizeComment($validated['communication_quality_comment'] ?? null)
+                    : null,
                 'degree_of_resolution' => $degree,
+                'degree_of_resolution_comment' => $this->normalizeComment($validated['degree_of_resolution_comment'] ?? null),
             ]);
 
             foreach ($validated['agents'] as $agent) {
@@ -134,11 +139,23 @@ class SupportTicketController extends Controller
                     'support_ticket_rating_id' => $rating->id,
                     'employee_id' => $agent['employee_id'],
                     'rating' => $agent['rating'],
+                    'comment' => $this->normalizeComment($agent['comment'] ?? null),
                 ]);
             }
         });
 
         return back()->with('success', 'Hvala na oceni!');
+    }
+
+    private function normalizeComment(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        return $trimmed === '' ? null : $trimmed;
     }
 
     private function serializeTicket(SupportTicket $ticket): array
@@ -167,12 +184,16 @@ class SupportTicketController extends Controller
         if ($ticket->rating) {
             $rating = [
                 'resolution_speed' => $ticket->rating->resolution_speed,
+                'resolution_speed_comment' => $ticket->rating->resolution_speed_comment,
                 'communication_quality' => $ticket->rating->communication_quality,
+                'communication_quality_comment' => $ticket->rating->communication_quality_comment,
                 'degree_of_resolution' => $ticket->rating->degree_of_resolution,
+                'degree_of_resolution_comment' => $ticket->rating->degree_of_resolution_comment,
                 'created_at' => $ticket->rating->created_at?->toIso8601String(),
                 'agents' => $ticket->rating->agentRatings->map(fn ($a) => [
                     'employee_id' => (int) $a->employee_id,
                     'rating' => (int) $a->rating,
+                    'comment' => $a->comment,
                 ])->values(),
             ];
         }

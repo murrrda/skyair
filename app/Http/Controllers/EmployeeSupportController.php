@@ -24,7 +24,8 @@ class EmployeeSupportController extends Controller
             ->with([
                 'user:id,first_name,last_name',
                 'category:id,name',
-                'workLogs.employee.user:id,first_name,last_name',
+                'workLogs.employee.user:id,first_name,last_name,name',
+                'rating.agentRatings',
             ])
             ->latest('created_at')
             ->get()
@@ -203,16 +204,22 @@ class EmployeeSupportController extends Controller
             $customerName = $full !== '' ? $full : ($customer->name ?? 'Korisnik');
         }
 
-        $workLogs = $ticket->workLogs->map(function ($log) {
+        $employeeNames = [];
+        $workLogs = $ticket->workLogs->map(function ($log) use (&$employeeNames) {
             $u = $log->employee?->user;
-            $name = $u
+            $full = $u
                 ? trim(($u->first_name ?? '').' '.($u->last_name ?? ''))
-                : null;
+                : '';
+            $name = $full !== '' ? $full : ($u?->name ?? 'Zaposleni');
+
+            if ($log->employee_id !== null) {
+                $employeeNames[(int) $log->employee_id] = $name;
+            }
 
             return [
                 'id' => $log->id,
                 'employee_id' => $log->employee_id,
-                'employee_name' => $name ?: 'Zaposleni',
+                'employee_name' => $name,
                 'started_at' => $log->started_at?->toIso8601String(),
                 'ended_at' => $log->ended_at?->toIso8601String(),
                 'action' => $log->action,
@@ -221,6 +228,25 @@ class EmployeeSupportController extends Controller
         })->values();
 
         $currentOwner = $workLogs->firstWhere('ended_at', null);
+
+        $rating = null;
+        if ($ticket->rating) {
+            $rating = [
+                'resolution_speed' => $ticket->rating->resolution_speed,
+                'resolution_speed_comment' => $ticket->rating->resolution_speed_comment,
+                'communication_quality' => $ticket->rating->communication_quality,
+                'communication_quality_comment' => $ticket->rating->communication_quality_comment,
+                'degree_of_resolution' => $ticket->rating->degree_of_resolution,
+                'degree_of_resolution_comment' => $ticket->rating->degree_of_resolution_comment,
+                'created_at' => $ticket->rating->created_at?->toIso8601String(),
+                'agents' => $ticket->rating->agentRatings->map(fn ($a) => [
+                    'employee_id' => (int) $a->employee_id,
+                    'employee_name' => $employeeNames[(int) $a->employee_id] ?? 'Zaposleni',
+                    'rating' => (int) $a->rating,
+                    'comment' => $a->comment,
+                ])->values(),
+            ];
+        }
 
         return [
             'id' => $ticket->id,
@@ -239,6 +265,7 @@ class EmployeeSupportController extends Controller
                 'started_at' => $currentOwner['started_at'],
             ] : null,
             'work_logs' => $workLogs,
+            'rating' => $rating,
         ];
     }
 }
