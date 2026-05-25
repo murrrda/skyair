@@ -12,7 +12,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        DB::statement('CREATE SEQUENCE support_ticket_number_seq START 0 MINVALUE 0');
+        DB::statement('CREATE SEQUENCE IF NOT EXISTS support_ticket_number_seq START 0 MINVALUE 0');
 
         Schema::create('category', function (Blueprint $table) {
             $table->id();

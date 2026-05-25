@@ -38,7 +38,7 @@ class EmployeeSupportController extends Controller
             ->get()
             ->map(function (Zaposlen $z) {
                 $u = $z->user;
-                $name = trim(($u?->first_name ?? '') . ' ' . ($u?->last_name ?? '')) ?: 'Zaposleni';
+                $name = trim(($u?->first_name ?? '').' '.($u?->last_name ?? '')) ?: 'Zaposleni';
 
                 return [
                     'id' => $z->user_id,
@@ -61,7 +61,7 @@ class EmployeeSupportController extends Controller
             'me' => [
                 'id' => $me?->id,
                 'employee_id' => $myZaposlen?->user_id,
-                'name' => trim(($me->first_name ?? '') . ' ' . ($me->last_name ?? '')),
+                'name' => trim(($me->first_name ?? '').' '.($me->last_name ?? '')),
                 'open_tickets' => $myOpenCount,
                 'capacity' => 5,
             ],
@@ -132,15 +132,35 @@ class EmployeeSupportController extends Controller
 
     public function complete(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
 
         $data = $request->validate([
             'outcome' => ['required', Rule::in(['success', 'partial', 'fail'])],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($ticket, $data) {
-            $this->closeOpenLogs($ticket, 'closed_' . $data['outcome'], $data['note'] ?? null);
+        DB::transaction(function () use ($ticket, $data, $employeeId) {
+            $action = 'closed_'.$data['outcome'];
+            $note = $data['note'] ?? null;
+
+            $hasOpenLog = SupportTicketWorkLog::where('support_ticket_id', $ticket->id)
+                ->whereNull('ended_at')
+                ->exists();
+
+            if ($hasOpenLog) {
+                $this->closeOpenLogs($ticket, $action, $note);
+            } else {
+                $now = Carbon::now();
+                SupportTicketWorkLog::create([
+                    'support_ticket_id' => $ticket->id,
+                    'employee_id' => $employeeId,
+                    'started_at' => $now,
+                    'ended_at' => $now,
+                    'action' => $action,
+                    'note' => $note,
+                ]);
+            }
+
             $ticket->status = 'closed';
             $ticket->outcome = $data['outcome'];
             $ticket->closed_at = now();
@@ -179,14 +199,14 @@ class EmployeeSupportController extends Controller
         $customer = $ticket->user;
         $customerName = 'Korisnik';
         if ($customer) {
-            $full = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            $full = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $customerName = $full !== '' ? $full : ($customer->name ?? 'Korisnik');
         }
 
         $workLogs = $ticket->workLogs->map(function ($log) {
             $u = $log->employee?->user;
             $name = $u
-                ? trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))
+                ? trim(($u->first_name ?? '').' '.($u->last_name ?? ''))
                 : null;
 
             return [

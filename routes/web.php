@@ -80,6 +80,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
     Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
     Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
+    Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
 
     Route::prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
         Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');

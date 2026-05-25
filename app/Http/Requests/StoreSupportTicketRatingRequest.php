@@ -1,0 +1,25 @@
+<?php
+
+namespace App\Http\Requests;
+
+use Illuminate\Foundation\Http\FormRequest;
+
+class StoreSupportTicketRatingRequest extends FormRequest
+{
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    public function rules(): array
+    {
+        return [
+            'resolution_speed' => ['required', 'integer', 'between:1,5'],
+            'communication_quality' => ['nullable', 'integer', 'between:1,5'],
+            'degree_of_resolution' => ['nullable', 'integer', 'between:1,5'],
+            'agents' => ['required', 'array', 'min:1'],
+            'agents.*.employee_id' => ['required', 'integer', 'exists:zaposleni,user_id'],
+            'agents.*.rating' => ['required', 'integer', 'between:1,5'],
+        ];
+    }
+}

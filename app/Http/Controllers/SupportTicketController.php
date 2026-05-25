@@ -3,12 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Events\NewSupportTicketCreated;
+use App\Http\Requests\StoreSupportTicketRatingRequest;
 use App\Http\Requests\StoreSupportTicketRequest;
 use App\Models\Category;
 use App\Models\SupportTicket;
+use App\Models\SupportTicketRating;
+use App\Models\SupportTicketRatingAgent;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,6 +25,7 @@ class SupportTicketController extends Controller
             ->with([
                 'category:id,name',
                 'workLogs.employee.user:id,first_name,last_name',
+                'rating.agentRatings',
             ])
             ->latest('created_at')
             ->get()
@@ -42,11 +47,11 @@ class SupportTicketController extends Controller
 
         $seq = DB::selectOne("SELECT nextval('support_ticket_number_seq') AS val")->val;
 
-        $ticket = new SupportTicket();
+        $ticket = new SupportTicket;
         $ticket->description = $validated['description'];
         $ticket->category_id = $validated['category_id'];
         $ticket->priority = $validated['priority'] ?? 'medium';
-        $ticket->number = 'ST-' . str_pad($seq, 4, '0', STR_PAD_LEFT);
+        $ticket->number = 'ST-'.str_pad($seq, 4, '0', STR_PAD_LEFT);
         $ticket->status = 'open';
         $request->user()->supportTickets()->save($ticket);
 
@@ -56,8 +61,123 @@ class SupportTicketController extends Controller
         return back()->with('success', 'Support ticket submitted successfully.');
     }
 
+    public function rate(StoreSupportTicketRatingRequest $request, SupportTicket $ticket): RedirectResponse
+    {
+        if ($ticket->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        if ($ticket->status !== 'closed') {
+            throw ValidationException::withMessages([
+                'ticket' => 'Recenzija je moguća tek kada je tiket završen.',
+            ]);
+        }
+
+        $ticket->load('rating', 'workLogs');
+
+        if ($ticket->rating) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Tiket je već ocenjen.',
+            ]);
+        }
+
+        $validated = $request->validated();
+
+        $allowedAgents = $ticket->workLogs
+            ->pluck('employee_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $submittedAgents = collect($validated['agents'])->pluck('employee_id')->map(fn ($id) => (int) $id);
+
+        if ($submittedAgents->diff($allowedAgents)->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'agents' => 'Ocenjeni agent nije radio na ovom tiketu.',
+            ]);
+        }
+
+        if ($submittedAgents->duplicates()->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'agents' => 'Svaki agent može biti ocenjen samo jednom.',
+            ]);
+        }
+
+        $hasAdditionalContact = $ticket->workLogs->contains(fn ($log) => $log->action === 'requested_info');
+        $isPartialResolution = $ticket->outcome === 'partial';
+
+        $communication = $hasAdditionalContact ? ($validated['communication_quality'] ?? null) : null;
+        $degree = $isPartialResolution ? ($validated['degree_of_resolution'] ?? null) : null;
+
+        if ($hasAdditionalContact && $communication === null) {
+            throw ValidationException::withMessages([
+                'communication_quality' => 'Ocena komunikacije je obavezna.',
+            ]);
+        }
+
+        if ($isPartialResolution && $degree === null) {
+            throw ValidationException::withMessages([
+                'degree_of_resolution' => 'Ocena stepena rešenja je obavezna.',
+            ]);
+        }
+
+        DB::transaction(function () use ($ticket, $validated, $communication, $degree) {
+            $rating = SupportTicketRating::create([
+                'support_ticket_id' => $ticket->id,
+                'resolution_speed' => $validated['resolution_speed'],
+                'communication_quality' => $communication,
+                'degree_of_resolution' => $degree,
+            ]);
+
+            foreach ($validated['agents'] as $agent) {
+                SupportTicketRatingAgent::create([
+                    'support_ticket_rating_id' => $rating->id,
+                    'employee_id' => $agent['employee_id'],
+                    'rating' => $agent['rating'],
+                ]);
+            }
+        });
+
+        return back()->with('success', 'Hvala na oceni!');
+    }
+
     private function serializeTicket(SupportTicket $ticket): array
     {
+        $agents = $ticket->workLogs
+            ->filter(fn ($log) => $log->employee_id !== null)
+            ->groupBy('employee_id')
+            ->map(function ($logs) {
+                $first = $logs->first();
+                $user = $first->employee?->user;
+                $name = $user
+                    ? trim(($user->first_name ?? '').' '.($user->last_name ?? ''))
+                    : null;
+
+                return [
+                    'employee_id' => (int) $first->employee_id,
+                    'name' => $name ?: 'Zaposleni',
+                ];
+            })
+            ->values();
+
+        $hasAdditionalContact = $ticket->workLogs->contains(fn ($log) => $log->action === 'requested_info');
+        $isPartialResolution = $ticket->outcome === 'partial';
+
+        $rating = null;
+        if ($ticket->rating) {
+            $rating = [
+                'resolution_speed' => $ticket->rating->resolution_speed,
+                'communication_quality' => $ticket->rating->communication_quality,
+                'degree_of_resolution' => $ticket->rating->degree_of_resolution,
+                'created_at' => $ticket->rating->created_at?->toIso8601String(),
+                'agents' => $ticket->rating->agentRatings->map(fn ($a) => [
+                    'employee_id' => (int) $a->employee_id,
+                    'rating' => (int) $a->rating,
+                ])->values(),
+            ];
+        }
+
         return [
             'id' => $ticket->id,
             'number' => $ticket->number,
@@ -72,7 +192,7 @@ class SupportTicketController extends Controller
             'work_logs' => $ticket->workLogs->map(function ($log) {
                 $user = $log->employee?->user;
                 $name = $user
-                    ? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))
+                    ? trim(($user->first_name ?? '').' '.($user->last_name ?? ''))
                     : null;
 
                 return [
@@ -85,6 +205,12 @@ class SupportTicketController extends Controller
                     'note' => $log->note,
                 ];
             })->values(),
+            'agents' => $agents,
+            'rating_context' => [
+                'has_additional_contact' => $hasAdditionalContact,
+                'is_partial_resolution' => $isPartialResolution,
+            ],
+            'rating' => $rating,
         ];
     }
 }
