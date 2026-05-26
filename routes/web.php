@@ -4,6 +4,7 @@ use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\RouteController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SupportTicketController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
@@ -43,6 +44,12 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/rute/{route}/uredi', [RouteController::class, 'edit'])->name('rute.edit');
     Route::patch('/rute/{route}', [RouteController::class, 'update'])->name('rute.update');
     Route::delete('/rute/{route}', [RouteController::class, 'destroy'])->name('rute.destroy');
+
+    Route::get('/flota/{plane}/servisi', [ServiceController::class, 'planeIndex'])->name('flota.servisi.index');
+    Route::get('/flota/{plane}/servisi/novi', [ServiceController::class, 'planeCreate'])->name('flota.servisi.create');
+    Route::post('/flota/{plane}/servisi', [ServiceController::class, 'planeStore'])->name('flota.servisi.store');
+    Route::get('/servisi/{service}', [ServiceController::class, 'show'])->name('servisi.show');
+    Route::post('/servisi/{service}/zavrsi', [ServiceController::class, 'complete'])->name('servisi.complete');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 
