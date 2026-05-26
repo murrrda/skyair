@@ -32,14 +32,16 @@ class EmployeeSupportController extends Controller
             ->map(fn (SupportTicket $t) => $this->serializeTicket($t));
 
         $colleagues = Zaposlen::query()
-            ->with('user:id,first_name,last_name')
+            ->with('user:id,first_name,last_name,name')
             ->withCount(['supportWorkLogs as open_tickets_count' => function ($q) {
                 $q->whereNull('ended_at');
             }])
+            ->orderBy('open_tickets_count')
             ->get()
             ->map(function (Zaposlen $z) {
                 $u = $z->user;
-                $name = trim(($u?->first_name ?? '').' '.($u?->last_name ?? '')) ?: 'Zaposleni';
+                $full = trim(($u?->first_name ?? '').' '.($u?->last_name ?? ''));
+                $name = $full !== '' ? $full : ($u?->name ?? 'Zaposleni');
 
                 return [
                     'id' => $z->user_id,
@@ -64,7 +66,6 @@ class EmployeeSupportController extends Controller
                 'employee_id' => $myZaposlen?->user_id,
                 'name' => trim(($me->first_name ?? '').' '.($me->last_name ?? '')),
                 'open_tickets' => $myOpenCount,
-                'capacity' => 5,
             ],
         ]);
     }
