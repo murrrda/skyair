@@ -61,6 +61,7 @@ export default function EditProfile({ putnik }: Props) {
                 </aside>
 
                 <div className="flex-1 p-6">
+                    <div className="mx-auto max-w-2xl">
                     <div className="mb-6 flex items-center gap-4 border-b border-border pb-5">
                         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#E6F1FB] text-[22px] font-semibold text-[#185FA5]">
                             {getInitials(user)}
@@ -217,6 +218,7 @@ export default function EditProfile({ putnik }: Props) {
                                 </>
                             )}
                         </Form>
+                    </div>
                     </div>
                 </div>
             </div>
