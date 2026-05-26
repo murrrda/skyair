@@ -146,7 +146,7 @@ export default function ZaposlenCreate({ tipoviUgovora }: Props) {
                                     className={errors.last_name ? 'border-destructive' : ''}
                                 />
                             </Field>
-                            <Field label="JMBG" error={errors.jmbg}>
+                            <Field label="JMBG" required error={errors.jmbg}>
                                 <Input
                                     placeholder="1234567890123"
                                     maxLength={13}

@@ -22,6 +22,9 @@ type ZaposlenData = {
         date_of_birth: string | null;
         phone_number: string | null;
         address: string | null;
+        jmbg: string | null;
+        gender: string | null;
+        country: string | null;
     };
     tipovi_ugovora: Array<{
         id: number;
@@ -76,6 +79,9 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
         last_name:       zaposlen.user.last_name,
         email:           zaposlen.user.email,
         date_of_birth:   zaposlen.user.date_of_birth ?? '',
+        jmbg:            zaposlen.user.jmbg ?? '',
+        gender:          zaposlen.user.gender ?? '',
+        country:         zaposlen.user.country ?? '',
         phone_number:    zaposlen.user.phone_number ?? '',
         address:         zaposlen.user.address ?? '',
         role:            zaposlen.role,
@@ -160,8 +166,14 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                                     className={errors.last_name ? 'border-destructive' : ''}
                                 />
                             </Field>
-                            <Field label="JMBG">
-                                <Input placeholder="1234567890123" maxLength={13} />
+                            <Field label="JMBG" required error={errors.jmbg}>
+                                <Input
+                                    placeholder="1234567890123"
+                                    maxLength={13}
+                                    value={data.jmbg}
+                                    onChange={(e) => setData('jmbg', e.target.value)}
+                                    className={errors.jmbg ? 'border-destructive' : ''}
+                                />
                             </Field>
                         </div>
 
@@ -174,19 +186,24 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                                     className={errors.date_of_birth ? 'border-destructive' : ''}
                                 />
                             </Field>
-                            <Field label="POL">
-                                <Select>
-                                    <SelectTrigger className="w-full">
+                            <Field label="POL" error={errors.gender}>
+                                <Select value={data.gender} onValueChange={(v) => setData('gender', v)}>
+                                    <SelectTrigger className={cn('w-full', errors.gender ? 'border-destructive' : '')}>
                                         <SelectValue placeholder="Izaberite..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="m">Muški</SelectItem>
-                                        <SelectItem value="z">Ženski</SelectItem>
+                                        <SelectItem value="male">Muški</SelectItem>
+                                        <SelectItem value="female">Ženski</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </Field>
-                            <Field label="DRZAVA">
-                                <Input placeholder="npr. Srbija" />
+                            <Field label="DRZAVA" error={errors.country}>
+                                <Input
+                                    placeholder="npr. Srbija"
+                                    value={data.country}
+                                    onChange={(e) => setData('country', e.target.value)}
+                                    className={errors.country ? 'border-destructive' : ''}
+                                />
                             </Field>
                         </div>
 
