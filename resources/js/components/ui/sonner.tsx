@@ -12,7 +12,7 @@ function Toaster({ ...props }: ToasterProps) {
             theme={appearance}
             className="toaster group"
             position="top-center"
-            duration={25000}
+            duration={2000}
             toastOptions={{
                 classNames: {
                     toast: 'border-2 border-[#1a56db]/60 shadow-lg dark:border-[#7eb1f5]/60',
