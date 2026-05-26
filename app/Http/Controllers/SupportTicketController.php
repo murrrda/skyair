@@ -61,7 +61,7 @@ class SupportTicketController extends Controller
         $ticket->load('category', 'user');
         NewSupportTicketCreated::dispatch($ticket);
 
-        return back()->with('success', 'Support ticket submitted successfully.');
+        return back()->with('success', 'Tiket uspešno prijavljen.');
     }
 
     public function rate(StoreSupportTicketRatingRequest $request, SupportTicket $ticket): RedirectResponse
