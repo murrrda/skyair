@@ -8,6 +8,7 @@ use App\Http\Controllers\FlightController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
+use App\Http\Controllers\PutnikController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
@@ -70,6 +71,9 @@ Route::get('/kupac/detalji-leta/{flight}', [FlightController::class, 'show'])->n
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+
+    Route::get('/kupac/edit-profile', [PutnikController::class, 'editProfile'])->name('kupac.profil');
+    Route::patch('/kupac/edit-profile', [PutnikController::class, 'updateProfile'])->name('kupac.profil.update');
 
     Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
     Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
