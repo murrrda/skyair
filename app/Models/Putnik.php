@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\PutnikFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Putnik extends Model
 {
-    /** @use HasFactory<\Database\Factories\PutnikFactory> */
+    /** @use HasFactory<PutnikFactory> */
     use HasFactory;
 
     protected $table = 'putnici';
@@ -22,6 +23,9 @@ class Putnik extends Model
     protected $fillable = [
         'user_id',
         'credit_card_number',
+        'status_points',
+        'reward_points',
+        'tier',
     ];
 
     public function user(): BelongsTo

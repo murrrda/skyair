@@ -1,32 +1,45 @@
 <?php
 
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
+use App\Http\Controllers\FlightController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
+use App\Http\Controllers\PutnikController;
+use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\SupportTicketController;
+use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
 use Laravel\Fortify\Features;
-use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\LoginController;
 
 Route::inertia('/', 'welcome', [
     'canRegister' => Features::enabled(Features::registration()),
 ])->name('home');
 
-Route::inertia('/kupac/login', 'auth/kupac-login', [
-    'canResetPassword' => true,
-])->name('kupac.login');
+Route::middleware('guest')->group(function () {
+    Route::inertia('/kupac/login', 'auth/kupac-login', [
+        'canResetPassword' => true,
+    ])->name('kupac.login');
 
-Route::inertia('/kupac/register', 'auth/kupac-register', [
-    'passwordRules' => '',
-])->name('kupac.register');
+    Route::inertia('/kupac/register', 'auth/kupac-register', [
+        'passwordRules' => '',
+    ])->name('kupac.register');
+});
 
 Route::post('/kupac/register', [RegisterController::class, 'registerCustomer'])->name('kupac.register.store');
 Route::post('/zaposleni/register', [RegisterController::class, 'registerEmployee'])->name('zaposleni.register.store');
 
 Route::inertia('/admin/login', 'auth/admin-login')->name('admin.login');
+
+Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+    Route::resource('employee', ZaposlenController::class);
+});
+
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);
 
 Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -55,12 +68,32 @@ Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac
 
 Route::inertia('/kupac/pretraga-letova', 'kupac/pretraga-letova')->name('kupac.pretraga-letova');
 
+Route::get('/kupac/rezultati-pretrage', [FlightController::class, 'index'])->name('kupac.rezultati-pretrage');
+Route::get('/kupac/detalji-leta/{flight}', [FlightController::class, 'show'])->name('kupac.detalji-leta');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
-    Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
-    Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
 
-    Route::prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
+    Route::middleware(['can:is-kupac'])->group(function () {
+        Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
+        Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
+        Route::post('/kupac/placanje', [ReservationController::class, 'store'])->name('kupac.placanje.store');
+        Route::post('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'pay'])->name('kupac.rezervacija.plati');
+        Route::get('/kupac/detalji-rezervacije/{reservation}', [ReservationController::class, 'details'])->name('kupac.detalji-rezervacije');
+        Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
+        Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
+        Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
+        Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
+        Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
+        Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
+        Route::patch('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'updateRating'])->name('support-tickets.rate.update');
+        Route::get('/kupac/loyalty', [LoyaltyController::class, 'index'])->name('kupac.loyalty');
+        Route::get('/kupac/loyalty/istorija', [LoyaltyController::class, 'history'])->name('kupac.loyalty.istorija');
+        Route::get('/kupac/edit-profile', [PutnikController::class, 'editProfile'])->name('kupac.profil');
+        Route::patch('/kupac/edit-profile', [PutnikController::class, 'updateProfile'])->name('kupac.profil.update');
+    });
+
+    Route::middleware(['can:is-agent'])->prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
         Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');
         Route::post('/{ticket}/take', [EmployeeSupportController::class, 'takeOver'])->name('take');
         Route::post('/{ticket}/request-info', [EmployeeSupportController::class, 'requestInfo'])->name('requestInfo');
@@ -70,6 +103,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+
+    Route::middleware(['can:is-zaposlen'])->prefix('employee')->name('employee.')->group(function () {
+        Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
+        Route::get('/profile', [EmployeeProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('profile.update');
+    });
 });
 
 require __DIR__.'/settings.php';

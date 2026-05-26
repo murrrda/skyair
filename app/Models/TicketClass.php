@@ -6,5 +6,5 @@ use Illuminate\Database\Eloquent\Model;
 
 class TicketClass extends Model
 {
-    //
+    protected $fillable = ['name', 'multiplier'];
 }

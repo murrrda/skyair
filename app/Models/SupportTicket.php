@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SupportTicket extends Model
 {
@@ -28,6 +29,7 @@ class SupportTicket extends Model
     protected $table = 'support_ticket';
 
     protected $fillable = [
+        'user_id',
         'description',
         'number',
         'status',
@@ -69,5 +71,10 @@ class SupportTicket extends Model
     public function changeLogs(): HasMany
     {
         return $this->hasMany(SupportTicketChangeLog::class)->orderBy('created_at');
+    }
+
+    public function rating(): HasOne
+    {
+        return $this->hasOne(SupportTicketRating::class);
     }
 }

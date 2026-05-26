@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,6 +25,24 @@ type WorkLog = {
     note: string | null;
 };
 
+type AgentRatingEntry = {
+    employee_id: number;
+    employee_name: string;
+    rating: number;
+    comment: string | null;
+};
+
+type TicketRating = {
+    resolution_speed: number;
+    resolution_speed_comment: string | null;
+    communication_quality: number | null;
+    communication_quality_comment: string | null;
+    degree_of_resolution: number | null;
+    degree_of_resolution_comment: string | null;
+    created_at: string | null;
+    agents: AgentRatingEntry[];
+};
+
 type Ticket = {
     id: number;
     number: string;
@@ -37,6 +56,7 @@ type Ticket = {
     customer_name: string;
     current_owner: { employee_id: number; name: string; started_at: string | null } | null;
     work_logs: WorkLog[];
+    rating: TicketRating | null;
 };
 
 type Colleague = {
@@ -51,7 +71,6 @@ type Me = {
     employee_id: number | null;
     name: string;
     open_tickets: number;
-    capacity: number;
 };
 
 type PageProps = {
@@ -227,8 +246,6 @@ map[col.key].push(t);
         [tickets, selectedId],
     );
 
-    const workloadDots = Array.from({ length: me.capacity }, (_, i) => i < me.open_tickets);
-
     const initials =
         (auth.user?.first_name?.charAt(0) ?? '') + (auth.user?.last_name?.charAt(0) ?? '');
 
@@ -255,8 +272,8 @@ return;
             <div className="min-h-screen bg-background text-foreground">
                 <nav className="flex h-14 items-center border-b border-border bg-card px-8">
                     <Link href="/" className="mr-10 flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#059669] text-sm font-bold text-white">
-                            S
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white">
+                            <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
                         <span className="text-[15px] font-semibold tracking-tight">SkyAir</span>
                     </Link>
@@ -291,21 +308,8 @@ return;
                             </p>
                         </div>
                         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[13px]">
-                            <span>Opterećenje:</span>
-                            <div className="flex gap-1">
-                                {workloadDots.map((on, i) => (
-                                    <span
-                                        key={i}
-                                        className={
-                                            'h-2 w-2 rounded-full ' +
-                                            (on ? 'bg-[#d97706] dark:bg-[#fbbf24]' : 'bg-border')
-                                        }
-                                    />
-                                ))}
-                            </div>
-                            <b>
-                                {me.open_tickets}/{me.capacity}
-                            </b>
+                            <span className="text-muted-foreground">Aktivni tiketi:</span>
+                            <b className="text-foreground">{me.open_tickets}</b>
                         </div>
                     </div>
 
@@ -370,6 +374,11 @@ return;
                             <div className="lg:col-span-2">
                                 <WorkLogCard ticket={selected} />
                             </div>
+                            {selected.rating && (
+                                <div className="lg:col-span-2">
+                                    <CustomerRatingCard ticket={selected} />
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <div className="rounded-xl border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
@@ -467,33 +476,33 @@ function TicketDetailsCard({
                 )}
             </div>
             <div className="px-5 py-4">
-                <DetailRow label="korisnik">
+                <DetailRow label="Korisnik">
                     <span className="font-medium">{ticket.customer_name}</span>
                 </DetailRow>
-                <DetailRow label="kategorija">
+                <DetailRow label="Kategorija">
                     <span className="font-medium">{ticket.category ?? '—'}</span>
                 </DetailRow>
-                <DetailRow label="opis_problema">
+                <DetailRow label="Opis problema">
                     <span className="max-w-[280px] text-right font-medium">
                         {ticket.description}
                     </span>
                 </DetailRow>
-                <DetailRow label="prioritet">
+                <DetailRow label="Prioritet">
                     <span className="inline-flex items-center gap-1.5 font-medium">
                         <span className={'h-2 w-2 rounded-full ' + prio.dot} />
                         {prio.label}
                     </span>
                 </DetailRow>
-                <DetailRow label="datum_kreiranja">
+                <DetailRow label="Datum kreiranja">
                     <span className="font-mono text-xs">{formatDateTime(ticket.created_at)}</span>
                 </DetailRow>
                 {ticket.closed_at && (
-                    <DetailRow label="datum_zatvaranja">
+                    <DetailRow label="Datum zatvaranja">
                         <span className="font-mono text-xs">{formatDateTime(ticket.closed_at)}</span>
                     </DetailRow>
                 )}
                 {ticket.outcome && (
-                    <DetailRow label="ishod">
+                    <DetailRow label="Ishod">
                         <span
                             className={
                                 'rounded border px-2 py-0.5 text-xs font-medium ' +
@@ -511,7 +520,15 @@ function TicketDetailsCard({
                             Akcije
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {!ownedByMe ? (
+                            {ownedByMe ? (
+                                <span className="rounded-md border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs font-medium text-[#059669] dark:border-[#059669]/40 dark:bg-[#059669]/15 dark:text-[#6ee7b7]">
+                                    Radite na ovom tiketu
+                                </span>
+                            ) : owner ? (
+                                <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                    Obrađuje: {owner.name}
+                                </span>
+                            ) : (
                                 <Button
                                     size="sm"
                                     onClick={onTakeOver}
@@ -519,38 +536,40 @@ function TicketDetailsCard({
                                 >
                                     Preuzmi
                                 </Button>
-                            ) : (
-                                <span className="rounded-md border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs font-medium text-[#059669] dark:border-[#059669]/40 dark:bg-[#059669]/15 dark:text-[#6ee7b7]">
-                                    Radite na ovom tiketu
-                                </span>
                             )}
-                            <Button size="sm" variant="outline" onClick={onRequestInfo}>
-                                Zatraži info
-                            </Button>
+                            {ownedByMe && (
+                                <Button size="sm" variant="outline" onClick={onRequestInfo}>
+                                    Zatraži info
+                                </Button>
+                            )}
                         </div>
 
-                        <div className="mt-5 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                            Završi tiket
-                        </div>
-                        <div className="flex gap-2">
-                            {(['success', 'partial', 'fail'] as const).map((o) => {
-                                const meta = outcomeLabels[o];
+                        {ownedByMe && (
+                            <>
+                                <div className="mt-5 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                    Završi tiket
+                                </div>
+                                <div className="flex gap-2">
+                                    {(['success', 'partial', 'fail'] as const).map((o) => {
+                                        const meta = outcomeLabels[o];
 
-                                return (
-                                    <button
-                                        key={o}
-                                        type="button"
-                                        onClick={() => onComplete(o)}
-                                        className={
-                                            'flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition hover:opacity-80 ' +
-                                            meta.className
-                                        }
-                                    >
-                                        {meta.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                        return (
+                                            <button
+                                                key={o}
+                                                type="button"
+                                                onClick={() => onComplete(o)}
+                                                className={
+                                                    'flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition hover:opacity-80 ' +
+                                                    meta.className
+                                                }
+                                            >
+                                                {meta.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
             </div>
@@ -574,6 +593,7 @@ function ColleaguesCard({
     onTransfer: () => void;
 }) {
     const others = colleagues.filter((c) => c.id !== me.employee_id);
+    const ownedByMe = !!ticket.current_owner && ticket.current_owner.employee_id === me.employee_id;
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -592,13 +612,6 @@ function ColleaguesCard({
                     <div className="space-y-1">
                         {colleagues.map((c) => {
                             const isMe = c.id === me.employee_id;
-                            const pct = Math.min(100, (c.open_tickets / 5) * 100);
-                            const bar =
-                                c.open_tickets >= 4
-                                    ? 'bg-[#dc2626] dark:bg-[#fca5a5]'
-                                    : c.open_tickets >= 3
-                                      ? 'bg-[#d97706] dark:bg-[#fbbf24]'
-                                      : 'bg-[#059669] dark:bg-[#6ee7b7]';
 
                             return (
                                 <div
@@ -620,12 +633,9 @@ function ColleaguesCard({
                                             {c.role ?? 'agent podrške'}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <div className="rounded-md border border-border bg-muted px-2 py-0.5 text-[12px]">
                                         <b className="text-foreground">{c.open_tickets}</b>
-                                        <span>tik.</span>
-                                        <div className="h-1 w-14 overflow-hidden rounded-full bg-border">
-                                            <div className={'h-full ' + bar} style={{ width: pct + '%' }} />
-                                        </div>
+                                        <span className="ml-1 text-muted-foreground">aktivnih</span>
                                     </div>
                                 </div>
                             );
@@ -633,7 +643,7 @@ function ColleaguesCard({
                     </div>
                 )}
 
-                {ticket.status !== 'closed' && others.length > 0 && (
+                {ticket.status !== 'closed' && ownedByMe && others.length > 0 && (
                     <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
                         <Select value={transferTarget} onValueChange={onTransferTargetChange}>
                             <SelectTrigger className="flex-1">
@@ -724,6 +734,116 @@ function WorkLogCard({ ticket }: { ticket: Ticket }) {
                         </tbody>
                     </table>
                 )}
+            </div>
+        </div>
+    );
+}
+
+function ReadOnlyStars({ value }: { value: number }) {
+    return (
+        <span className="inline-flex items-center gap-0.5">
+            {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                    key={n}
+                    className={n <= value ? 'text-[#f59e0b]' : 'text-muted-foreground'}
+                >
+                    {n <= value ? '★' : '☆'}
+                </span>
+            ))}
+            <span className="ml-1 text-[11px] text-muted-foreground">{value}/5</span>
+        </span>
+    );
+}
+
+function RatingDimension({
+    label,
+    value,
+    comment,
+}: {
+    label: string;
+    value: number | null;
+    comment: string | null;
+}) {
+    if (value === null) {
+return null;
+}
+
+    return (
+        <div className="space-y-1 border-b border-border py-2 last:border-b-0">
+            <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{label}</span>
+                <ReadOnlyStars value={value} />
+            </div>
+            {comment && (
+                <p className="rounded-md border border-border bg-muted px-2.5 py-1.5 text-[12px] leading-relaxed text-foreground">
+                    {comment}
+                </p>
+            )}
+        </div>
+    );
+}
+
+function CustomerRatingCard({ ticket }: { ticket: Ticket }) {
+    const r = ticket.rating!;
+
+    return (
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="flex items-center justify-between border-b border-border px-5 py-4">
+                <h3 className="text-[15px] font-semibold tracking-tight">
+                    Recenzija korisnika — #{ticket.number}
+                </h3>
+                <span className="text-xs text-muted-foreground">
+                    {formatDateTime(r.created_at)}
+                </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 px-5 py-4 text-[13px] md:grid-cols-2">
+                <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Po agentu
+                    </div>
+                    {r.agents.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic">
+                            Korisnik nije ocenio nijednog agenta.
+                        </p>
+                    ) : (
+                        r.agents.map((ar) => (
+                            <div
+                                key={ar.employee_id}
+                                className="space-y-1 border-b border-border py-2 last:border-b-0"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <span className="font-medium">{ar.employee_name}</span>
+                                    <ReadOnlyStars value={ar.rating} />
+                                </div>
+                                {ar.comment && (
+                                    <p className="rounded-md border border-border bg-muted px-2.5 py-1.5 text-[12px] leading-relaxed text-foreground">
+                                        {ar.comment}
+                                    </p>
+                                )}
+                            </div>
+                        ))
+                    )}
+                </div>
+                <div>
+                    <div className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                        Po kategoriji
+                    </div>
+                    <RatingDimension
+                        label="Brzina rešavanja"
+                        value={r.resolution_speed}
+                        comment={r.resolution_speed_comment}
+                    />
+                    <RatingDimension
+                        label="Kvalitet komunikacije"
+                        value={r.communication_quality}
+                        comment={r.communication_quality_comment}
+                    />
+                    <RatingDimension
+                        label="Stepen rešenja"
+                        value={r.degree_of_resolution}
+                        comment={r.degree_of_resolution_comment}
+                    />
+                </div>
             </div>
         </div>
     );

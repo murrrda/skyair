@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,21 +25,25 @@ class EmployeeSupportController extends Controller
             ->with([
                 'user:id,first_name,last_name',
                 'category:id,name',
-                'workLogs.employee.user:id,first_name,last_name',
+                'workLogs.employee.user:id,first_name,last_name,name',
+                'rating.agentRatings',
             ])
             ->latest('created_at')
             ->get()
             ->map(fn (SupportTicket $t) => $this->serializeTicket($t));
 
         $colleagues = Zaposlen::query()
-            ->with('user:id,first_name,last_name')
+            ->where('role', 'agent')
+            ->with('user:id,first_name,last_name,name')
             ->withCount(['supportWorkLogs as open_tickets_count' => function ($q) {
                 $q->whereNull('ended_at');
             }])
+            ->orderBy('open_tickets_count')
             ->get()
             ->map(function (Zaposlen $z) {
                 $u = $z->user;
-                $name = trim(($u?->first_name ?? '') . ' ' . ($u?->last_name ?? '')) ?: 'Zaposleni';
+                $full = trim(($u?->first_name ?? '').' '.($u?->last_name ?? ''));
+                $name = $full !== '' ? $full : ($u?->name ?? 'Zaposleni');
 
                 return [
                     'id' => $z->user_id,
@@ -61,9 +66,8 @@ class EmployeeSupportController extends Controller
             'me' => [
                 'id' => $me?->id,
                 'employee_id' => $myZaposlen?->user_id,
-                'name' => trim(($me->first_name ?? '') . ' ' . ($me->last_name ?? '')),
+                'name' => trim(($me->first_name ?? '').' '.($me->last_name ?? '')),
                 'open_tickets' => $myOpenCount,
-                'capacity' => 5,
             ],
         ]);
     }
@@ -71,6 +75,14 @@ class EmployeeSupportController extends Controller
     public function takeOver(Request $request, SupportTicket $ticket): RedirectResponse
     {
         $employeeId = $this->ensureEmployee($request);
+
+        $currentOwnerId = $this->currentOwnerId($ticket);
+
+        if ($currentOwnerId !== null && $currentOwnerId !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Tiket trenutno obrađuje drugi zaposleni.',
+            ]);
+        }
 
         DB::transaction(function () use ($ticket, $employeeId) {
             $this->closeOpenLogs($ticket, 'taken_over');
@@ -91,7 +103,9 @@ class EmployeeSupportController extends Controller
 
     public function requestInfo(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
+        $this->ensureIsCurrentOwner($ticket, $employeeId);
+
         $note = $request->validate(['note' => ['nullable', 'string', 'max:2000']])['note'] ?? null;
 
         DB::transaction(function () use ($ticket, $note) {
@@ -105,7 +119,8 @@ class EmployeeSupportController extends Controller
 
     public function transfer(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
+        $this->ensureIsCurrentOwner($ticket, $employeeId);
 
         $data = $request->validate([
             'to_employee_id' => ['required', 'integer', 'exists:zaposleni,user_id'],
@@ -132,15 +147,43 @@ class EmployeeSupportController extends Controller
 
     public function complete(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
+
+        $currentOwnerId = $this->currentOwnerId($ticket);
+
+        if ($currentOwnerId !== null && $currentOwnerId !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Tiket trenutno obrađuje drugi zaposleni.',
+            ]);
+        }
 
         $data = $request->validate([
             'outcome' => ['required', Rule::in(['success', 'partial', 'fail'])],
             'note' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        DB::transaction(function () use ($ticket, $data) {
-            $this->closeOpenLogs($ticket, 'closed_' . $data['outcome'], $data['note'] ?? null);
+        DB::transaction(function () use ($ticket, $data, $employeeId) {
+            $action = 'closed_'.$data['outcome'];
+            $note = $data['note'] ?? null;
+
+            $hasOpenLog = SupportTicketWorkLog::where('support_ticket_id', $ticket->id)
+                ->whereNull('ended_at')
+                ->exists();
+
+            if ($hasOpenLog) {
+                $this->closeOpenLogs($ticket, $action, $note);
+            } else {
+                $now = Carbon::now();
+                SupportTicketWorkLog::create([
+                    'support_ticket_id' => $ticket->id,
+                    'employee_id' => $employeeId,
+                    'started_at' => $now,
+                    'ended_at' => $now,
+                    'action' => $action,
+                    'note' => $note,
+                ]);
+            }
+
             $ticket->status = 'closed';
             $ticket->outcome = $data['outcome'];
             $ticket->closed_at = now();
@@ -148,6 +191,24 @@ class EmployeeSupportController extends Controller
         });
 
         return back()->with('success', 'Tiket zatvoren.');
+    }
+
+    private function currentOwnerId(SupportTicket $ticket): ?int
+    {
+        $ownerId = SupportTicketWorkLog::where('support_ticket_id', $ticket->id)
+            ->whereNull('ended_at')
+            ->value('employee_id');
+
+        return $ownerId !== null ? (int) $ownerId : null;
+    }
+
+    private function ensureIsCurrentOwner(SupportTicket $ticket, int $employeeId): void
+    {
+        if ($this->currentOwnerId($ticket) !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Samo zaposleni koji trenutno obrađuje tiket može izvršiti ovu akciju.',
+            ]);
+        }
     }
 
     private function closeOpenLogs(SupportTicket $ticket, string $action, ?string $note = null): void
@@ -179,20 +240,26 @@ class EmployeeSupportController extends Controller
         $customer = $ticket->user;
         $customerName = 'Korisnik';
         if ($customer) {
-            $full = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            $full = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $customerName = $full !== '' ? $full : ($customer->name ?? 'Korisnik');
         }
 
-        $workLogs = $ticket->workLogs->map(function ($log) {
+        $employeeNames = [];
+        $workLogs = $ticket->workLogs->map(function ($log) use (&$employeeNames) {
             $u = $log->employee?->user;
-            $name = $u
-                ? trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))
-                : null;
+            $full = $u
+                ? trim(($u->first_name ?? '').' '.($u->last_name ?? ''))
+                : '';
+            $name = $full !== '' ? $full : ($u?->name ?? 'Zaposleni');
+
+            if ($log->employee_id !== null) {
+                $employeeNames[(int) $log->employee_id] = $name;
+            }
 
             return [
                 'id' => $log->id,
                 'employee_id' => $log->employee_id,
-                'employee_name' => $name ?: 'Zaposleni',
+                'employee_name' => $name,
                 'started_at' => $log->started_at?->toIso8601String(),
                 'ended_at' => $log->ended_at?->toIso8601String(),
                 'action' => $log->action,
@@ -201,6 +268,25 @@ class EmployeeSupportController extends Controller
         })->values();
 
         $currentOwner = $workLogs->firstWhere('ended_at', null);
+
+        $rating = null;
+        if ($ticket->rating) {
+            $rating = [
+                'resolution_speed' => $ticket->rating->resolution_speed,
+                'resolution_speed_comment' => $ticket->rating->resolution_speed_comment,
+                'communication_quality' => $ticket->rating->communication_quality,
+                'communication_quality_comment' => $ticket->rating->communication_quality_comment,
+                'degree_of_resolution' => $ticket->rating->degree_of_resolution,
+                'degree_of_resolution_comment' => $ticket->rating->degree_of_resolution_comment,
+                'created_at' => $ticket->rating->created_at?->toIso8601String(),
+                'agents' => $ticket->rating->agentRatings->map(fn ($a) => [
+                    'employee_id' => (int) $a->employee_id,
+                    'employee_name' => $employeeNames[(int) $a->employee_id] ?? 'Zaposleni',
+                    'rating' => (int) $a->rating,
+                    'comment' => $a->comment,
+                ])->values(),
+            ];
+        }
 
         return [
             'id' => $ticket->id,
@@ -219,6 +305,7 @@ class EmployeeSupportController extends Controller
                 'started_at' => $currentOwner['started_at'],
             ] : null,
             'work_logs' => $workLogs,
+            'rating' => $rating,
         ];
     }
 }
