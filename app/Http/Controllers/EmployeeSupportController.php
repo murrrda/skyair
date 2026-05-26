@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -74,6 +75,14 @@ class EmployeeSupportController extends Controller
     {
         $employeeId = $this->ensureEmployee($request);
 
+        $currentOwnerId = $this->currentOwnerId($ticket);
+
+        if ($currentOwnerId !== null && $currentOwnerId !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Tiket trenutno obrađuje drugi zaposleni.',
+            ]);
+        }
+
         DB::transaction(function () use ($ticket, $employeeId) {
             $this->closeOpenLogs($ticket, 'taken_over');
 
@@ -93,7 +102,9 @@ class EmployeeSupportController extends Controller
 
     public function requestInfo(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
+        $this->ensureIsCurrentOwner($ticket, $employeeId);
+
         $note = $request->validate(['note' => ['nullable', 'string', 'max:2000']])['note'] ?? null;
 
         DB::transaction(function () use ($ticket, $note) {
@@ -107,7 +118,8 @@ class EmployeeSupportController extends Controller
 
     public function transfer(Request $request, SupportTicket $ticket): RedirectResponse
     {
-        $this->ensureEmployee($request);
+        $employeeId = $this->ensureEmployee($request);
+        $this->ensureIsCurrentOwner($ticket, $employeeId);
 
         $data = $request->validate([
             'to_employee_id' => ['required', 'integer', 'exists:zaposleni,user_id'],
@@ -135,6 +147,14 @@ class EmployeeSupportController extends Controller
     public function complete(Request $request, SupportTicket $ticket): RedirectResponse
     {
         $employeeId = $this->ensureEmployee($request);
+
+        $currentOwnerId = $this->currentOwnerId($ticket);
+
+        if ($currentOwnerId !== null && $currentOwnerId !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Tiket trenutno obrađuje drugi zaposleni.',
+            ]);
+        }
 
         $data = $request->validate([
             'outcome' => ['required', Rule::in(['success', 'partial', 'fail'])],
@@ -170,6 +190,24 @@ class EmployeeSupportController extends Controller
         });
 
         return back()->with('success', 'Tiket zatvoren.');
+    }
+
+    private function currentOwnerId(SupportTicket $ticket): ?int
+    {
+        $ownerId = SupportTicketWorkLog::where('support_ticket_id', $ticket->id)
+            ->whereNull('ended_at')
+            ->value('employee_id');
+
+        return $ownerId !== null ? (int) $ownerId : null;
+    }
+
+    private function ensureIsCurrentOwner(SupportTicket $ticket, int $employeeId): void
+    {
+        if ($this->currentOwnerId($ticket) !== $employeeId) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Samo zaposleni koji trenutno obrađuje tiket može izvršiti ovu akciju.',
+            ]);
+        }
     }
 
     private function closeOpenLogs(SupportTicket $ticket, string $action, ?string $note = null): void

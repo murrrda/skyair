@@ -519,7 +519,15 @@ function TicketDetailsCard({
                             Akcije
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            {!ownedByMe ? (
+                            {ownedByMe ? (
+                                <span className="rounded-md border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs font-medium text-[#059669] dark:border-[#059669]/40 dark:bg-[#059669]/15 dark:text-[#6ee7b7]">
+                                    Radite na ovom tiketu
+                                </span>
+                            ) : owner ? (
+                                <span className="rounded-md border border-border bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                    Obrađuje: {owner.name}
+                                </span>
+                            ) : (
                                 <Button
                                     size="sm"
                                     onClick={onTakeOver}
@@ -527,38 +535,40 @@ function TicketDetailsCard({
                                 >
                                     Preuzmi
                                 </Button>
-                            ) : (
-                                <span className="rounded-md border border-[#a7f3d0] bg-[#ecfdf5] px-2.5 py-1 text-xs font-medium text-[#059669] dark:border-[#059669]/40 dark:bg-[#059669]/15 dark:text-[#6ee7b7]">
-                                    Radite na ovom tiketu
-                                </span>
                             )}
-                            <Button size="sm" variant="outline" onClick={onRequestInfo}>
-                                Zatraži info
-                            </Button>
+                            {ownedByMe && (
+                                <Button size="sm" variant="outline" onClick={onRequestInfo}>
+                                    Zatraži info
+                                </Button>
+                            )}
                         </div>
 
-                        <div className="mt-5 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
-                            Završi tiket
-                        </div>
-                        <div className="flex gap-2">
-                            {(['success', 'partial', 'fail'] as const).map((o) => {
-                                const meta = outcomeLabels[o];
+                        {ownedByMe && (
+                            <>
+                                <div className="mt-5 mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                                    Završi tiket
+                                </div>
+                                <div className="flex gap-2">
+                                    {(['success', 'partial', 'fail'] as const).map((o) => {
+                                        const meta = outcomeLabels[o];
 
-                                return (
-                                    <button
-                                        key={o}
-                                        type="button"
-                                        onClick={() => onComplete(o)}
-                                        className={
-                                            'flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition hover:opacity-80 ' +
-                                            meta.className
-                                        }
-                                    >
-                                        {meta.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
+                                        return (
+                                            <button
+                                                key={o}
+                                                type="button"
+                                                onClick={() => onComplete(o)}
+                                                className={
+                                                    'flex-1 rounded-lg border px-2 py-2.5 text-xs font-medium transition hover:opacity-80 ' +
+                                                    meta.className
+                                                }
+                                            >
+                                                {meta.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
                     </>
                 )}
             </div>
@@ -582,6 +592,7 @@ function ColleaguesCard({
     onTransfer: () => void;
 }) {
     const others = colleagues.filter((c) => c.id !== me.employee_id);
+    const ownedByMe = !!ticket.current_owner && ticket.current_owner.employee_id === me.employee_id;
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
@@ -631,7 +642,7 @@ function ColleaguesCard({
                     </div>
                 )}
 
-                {ticket.status !== 'closed' && others.length > 0 && (
+                {ticket.status !== 'closed' && ownedByMe && others.length > 0 && (
                     <div className="mt-4 flex items-center gap-2 border-t border-border pt-4">
                         <Select value={transferTarget} onValueChange={onTransferTargetChange}>
                             <SelectTrigger className="flex-1">
