@@ -2,7 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { Button } from '@/components/ui/button';
 
 interface KupacHeaderProps {
-    active?: 'letovi' | 'moji-letovi' | 'loyalty';
+    active?: 'letovi' | 'moji-letovi' | 'tiketi' | 'loyalty';
 }
 
 export default function KupacHeader({ active }: KupacHeaderProps) {
@@ -23,7 +23,8 @@ export default function KupacHeader({ active }: KupacHeaderProps) {
                 <nav className="flex items-center gap-5 text-[13px]">
                     <Link href="/kupac/pretraga-letova" className={linkClass('letovi')}>Letovi</Link>
                     <Link href="/kupac/moji-letovi" className={linkClass('moji-letovi')}>Moji letovi</Link>
-                    <Link href="#" className={linkClass('loyalty')}>Loyalty</Link>
+                    <Link href="/support-tickets" className={linkClass('tiketi')}>Moji tiketi</Link>
+                    <Link href="/kupac/loyalty" className={linkClass('loyalty')}>Loyalty</Link>
                     {auth.user ? (
                         <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">
