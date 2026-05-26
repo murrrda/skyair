@@ -70,7 +70,6 @@ type Me = {
     employee_id: number | null;
     name: string;
     open_tickets: number;
-    capacity: number;
 };
 
 type PageProps = {
@@ -246,8 +245,6 @@ map[col.key].push(t);
         [tickets, selectedId],
     );
 
-    const workloadDots = Array.from({ length: me.capacity }, (_, i) => i < me.open_tickets);
-
     const initials =
         (auth.user?.first_name?.charAt(0) ?? '') + (auth.user?.last_name?.charAt(0) ?? '');
 
@@ -310,21 +307,8 @@ return;
                             </p>
                         </div>
                         <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-[13px]">
-                            <span>Opterećenje:</span>
-                            <div className="flex gap-1">
-                                {workloadDots.map((on, i) => (
-                                    <span
-                                        key={i}
-                                        className={
-                                            'h-2 w-2 rounded-full ' +
-                                            (on ? 'bg-[#d97706] dark:bg-[#fbbf24]' : 'bg-border')
-                                        }
-                                    />
-                                ))}
-                            </div>
-                            <b>
-                                {me.open_tickets}/{me.capacity}
-                            </b>
+                            <span className="text-muted-foreground">Aktivni tiketi:</span>
+                            <b className="text-foreground">{me.open_tickets}</b>
                         </div>
                     </div>
 
@@ -616,13 +600,6 @@ function ColleaguesCard({
                     <div className="space-y-1">
                         {colleagues.map((c) => {
                             const isMe = c.id === me.employee_id;
-                            const pct = Math.min(100, (c.open_tickets / 5) * 100);
-                            const bar =
-                                c.open_tickets >= 4
-                                    ? 'bg-[#dc2626] dark:bg-[#fca5a5]'
-                                    : c.open_tickets >= 3
-                                      ? 'bg-[#d97706] dark:bg-[#fbbf24]'
-                                      : 'bg-[#059669] dark:bg-[#6ee7b7]';
 
                             return (
                                 <div
@@ -644,12 +621,9 @@ function ColleaguesCard({
                                             {c.role ?? 'agent podrške'}
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                    <div className="rounded-md border border-border bg-muted px-2 py-0.5 text-[12px]">
                                         <b className="text-foreground">{c.open_tickets}</b>
-                                        <span>tik.</span>
-                                        <div className="h-1 w-14 overflow-hidden rounded-full bg-border">
-                                            <div className={'h-full ' + bar} style={{ width: pct + '%' }} />
-                                        </div>
+                                        <span className="ml-1 text-muted-foreground">aktivnih</span>
                                     </div>
                                 </div>
                             );
