@@ -14,10 +14,12 @@ class Ugovor extends Pivot
         'datum_potpisivanja',
         'datum_isteka',
         'napomena',
+        'is_active',
     ];
 
     protected $casts = [
         'datum_potpisivanja' => 'date',
         'datum_isteka' => 'date',
+        'is_active' => 'boolean',
     ];
 }

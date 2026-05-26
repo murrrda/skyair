@@ -14,6 +14,7 @@ class TipUgovoraSeeder extends Seeder
             ['naziv' => 'Ugovor o radu na određeno', 'opis' => 'Radni odnos na određeno vremensko razdoblje.'],
             ['naziv' => 'Ugovor o djelu', 'opis' => 'Angažman za izvršenje određenog posla ili projekta.'],
             ['naziv' => 'Ugovor o volontiranju', 'opis' => 'Volonterski angažman bez naknade.'],
+            ['naziv' => 'Sezonski ugovor o radu', 'opis' => 'Privremeni ugovor za sezonske poslove.'],
         ];
 
         foreach ($tipovi as $tip) {
