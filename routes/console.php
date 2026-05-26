@@ -12,3 +12,7 @@ Schedule::command('email-queue:flush')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('reservations:cancel-expired')
+    ->hourly()
+    ->withoutOverlapping();

@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\FlightController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\ReservationController;

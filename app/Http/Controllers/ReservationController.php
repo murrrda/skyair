@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Flight;
 use App\Models\FlightTicket;
+use App\Models\LoyaltyPoint;
 use App\Models\Payment;
+use App\Models\Putnik;
 use App\Models\Reservation;
 use App\Models\ReservationState;
 use App\Models\TicketClass;
@@ -103,10 +105,10 @@ class ReservationController extends Controller
                 'occupancy_amount' => 0,
                 'reward_discount' => 0,
                 'total' => $total,
-                'status_points' => (int) round($total * 0.03),
-                'reward_points' => (int) round($total * 0.01),
+                'status_points' => (int) round($total * $multiplier * 0.25),
+                'reward_points' => (int) round($total * $multiplier),
             ],
-            'user_reward_points' => 0,
+            'user_reward_points' => $this->getUserRewardPoints($request->user()->id),
         ]);
     }
 
@@ -117,6 +119,7 @@ class ReservationController extends Controller
             'ticket_class_id' => 'required|integer',
             'passenger_first_name' => 'required|string|max:255',
             'passenger_last_name' => 'required|string|max:255',
+            'reward_points_used' => 'sometimes|integer|min:0',
         ]);
 
         $flight = Flight::with(['route', 'plane', 'tickets'])->findOrFail($request->flight_id);
@@ -124,7 +127,15 @@ class ReservationController extends Controller
         $multiplier = $ticketClass?->multiplier ?? $this->fallbackMultiplier($request->ticket_class_id);
 
         $basePrice = $this->estimateBasePrice($flight);
-        $finalPrice = round($basePrice * $multiplier, 2);
+        $fullPrice = round($basePrice * $multiplier, 2);
+
+        $rewardUsed = min(
+            (int) $request->input('reward_points_used', 0),
+            $this->getUserRewardPoints($request->user()->id),
+            (int) $fullPrice,
+        );
+
+        $finalPrice = $fullPrice - $rewardUsed;
 
         $capacity = $flight->plane?->capacity ?? 180;
         $takenSeats = $flight->tickets->pluck('seat_number')->toArray();
@@ -133,7 +144,7 @@ class ReservationController extends Controller
             $seat++;
         }
 
-        $reservation = DB::transaction(function () use ($request, $flight, $finalPrice, $basePrice, $seat) {
+        $reservation = DB::transaction(function () use ($request, $flight, $finalPrice, $basePrice, $seat, $rewardUsed) {
             $reservation = Reservation::create([
                 'user_id' => $request->user()->id,
                 'total_price' => $finalPrice,
@@ -157,6 +168,20 @@ class ReservationController extends Controller
                 'final_price' => $finalPrice,
                 'seat_number' => $seat,
             ]);
+
+            if ($rewardUsed > 0) {
+                $putnik = Putnik::firstOrCreate(['user_id' => $request->user()->id], ['credit_card_number' => '']);
+                $putnik->decrement('reward_points', $rewardUsed);
+
+                LoyaltyPoint::create([
+                    'user_id' => $request->user()->id,
+                    'reservation_id' => $reservation->id,
+                    'type' => 'reward',
+                    'action' => 'spent',
+                    'amount' => $rewardUsed,
+                    'description' => 'Iskorišćeni reward poeni za '.$reservation->code,
+                ]);
+            }
 
             return $reservation;
         });
@@ -184,6 +209,8 @@ class ReservationController extends Controller
             return redirect()->route('kupac.moji-letovi')->with('error', 'Rok za plaćanje je istekao. Rezervacija je otkazana.');
         }
 
+        $reservation->load('tickets');
+
         DB::transaction(function () use ($request, $reservation) {
             $payment = Payment::create([
                 'amount' => $reservation->total_price,
@@ -200,6 +227,42 @@ class ReservationController extends Controller
                 'payment_id' => $payment->id,
                 'latest_state_id' => $state->id,
             ]);
+
+            $ticket = $reservation->tickets->first();
+            $ticketClass = $ticket ? TicketClass::find($ticket->ticket_class_id) : null;
+            $multiplier = $ticketClass?->multiplier ?? ($ticket ? $this->fallbackMultiplier($ticket->ticket_class_id) : 1.0);
+
+            $price = (float) $reservation->total_price;
+            $statusEarned = (int) round($price * $multiplier * 0.25);
+            $rewardEarned = (int) round($price * $multiplier);
+            $expiresAt = now()->addYear();
+
+            LoyaltyPoint::create([
+                'user_id' => $reservation->user_id,
+                'reservation_id' => $reservation->id,
+                'type' => 'status',
+                'action' => 'earned',
+                'amount' => $statusEarned,
+                'description' => 'Kupovina karte '.$reservation->code,
+                'expires_at' => $expiresAt,
+            ]);
+
+            LoyaltyPoint::create([
+                'user_id' => $reservation->user_id,
+                'reservation_id' => $reservation->id,
+                'type' => 'reward',
+                'action' => 'earned',
+                'amount' => $rewardEarned,
+                'description' => 'Kupovina karte '.$reservation->code,
+                'expires_at' => $expiresAt,
+            ]);
+
+            $putnik = Putnik::firstOrCreate(['user_id' => $reservation->user_id], ['credit_card_number' => '']);
+            $putnik->increment('status_points', $statusEarned);
+            $putnik->increment('reward_points', $rewardEarned);
+
+            $putnik->refresh();
+            $putnik->update(['tier' => $this->calculateTier($putnik->status_points)]);
         });
 
         return redirect()->route('kupac.potvrda-rezervacije', $reservation);
@@ -216,11 +279,14 @@ class ReservationController extends Controller
 
         $ticketClass = $ticket ? TicketClass::find($ticket->ticket_class_id) : null;
         $className = $ticketClass?->name ?? ($ticket ? $this->fallbackClassName($ticket->ticket_class_id) : '—');
+        $multiplier = $ticketClass?->multiplier ?? ($ticket ? $this->fallbackMultiplier($ticket->ticket_class_id) : 1.0);
 
-        $statusPoints = (int) round($reservation->total_price * 0.03);
-        $rewardPoints = (int) round($reservation->total_price * 0.01);
+        $price = (float) $reservation->total_price;
+        $statusPoints = (int) round($price * $multiplier * 0.25);
+        $rewardPoints = (int) round($price * $multiplier);
 
         $isPaid = $reservation->payment_id !== null;
+        $putnik = Putnik::find($reservation->user_id);
 
         return Inertia::render('kupac/potvrda-rezervacije', [
             'reservation' => [
@@ -235,8 +301,8 @@ class ReservationController extends Controller
                 'total_price' => (int) $reservation->total_price,
                 'status_points' => $statusPoints,
                 'reward_points' => $rewardPoints,
-                'total_status_points' => $statusPoints,
-                'gold_progress_pct' => min(100, (int) round($statusPoints / 100)),
+                'total_status_points' => $putnik?->status_points ?? $statusPoints,
+                'gold_progress_pct' => min(100, (int) round(($putnik?->status_points ?? 0) / 200)),
                 'user_email' => $reservation->user?->email ?? '—',
             ],
         ]);
@@ -424,6 +490,20 @@ class ReservationController extends Controller
             1 => 1.0,
             2 => 1.5,
             0 => 2.0,
+        };
+    }
+
+    private function getUserRewardPoints(int $userId): int
+    {
+        return (int) (Putnik::find($userId)?->reward_points ?? 0);
+    }
+
+    private function calculateTier(int $statusPoints): string
+    {
+        return match (true) {
+            $statusPoints >= 20000 => 'platinum',
+            $statusPoints >= 10000 => 'gold',
+            default => 'silver',
         };
     }
 }

@@ -41,7 +41,7 @@ export default function PretragaLetova() {
                             <Link href="/kupac/pretraga-letova" className="font-semibold text-foreground">Letovi</Link>
                             <Link href="/kupac/moji-letovi" className="text-muted-foreground">Moji letovi</Link>
                             <Link href="/support-tickets" className="text-muted-foreground">Moji tiketi</Link>
-                            <Link href="#" className="text-muted-foreground">Loyalty</Link>
+                            <Link href="/kupac/loyalty" className="text-muted-foreground">Loyalty</Link>
                             {auth.user ? (
                                 <div className="flex items-center gap-2">
                                     <span className="text-muted-foreground">{auth.user.first_name} {auth.user.last_name?.charAt(0)}.</span>

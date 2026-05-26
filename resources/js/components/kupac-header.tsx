@@ -25,7 +25,8 @@ export default function KupacHeader({ active }: KupacHeaderProps) {
                     <Link href="/kupac/pretraga-letova" className={linkClass('letovi')}>Letovi</Link>
                     <Link href="/kupac/moji-letovi" className={linkClass('moji-letovi')}>Moji letovi</Link>
                     <Link href="/support-tickets" className={linkClass('moji-tiketi')}>Moji tiketi</Link>
-                    <Link href="#" className={linkClass('loyalty')}>Loyalty</Link>
+                    <Link href="/kupac/loyalty" className={linkClass('loyalty')}>Loyalty</Link>
+
                     {auth.user ? (
                         <div className="flex items-center gap-2">
                             <span className="text-muted-foreground">
