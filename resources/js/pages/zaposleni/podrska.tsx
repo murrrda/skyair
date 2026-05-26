@@ -491,33 +491,33 @@ function TicketDetailsCard({
                 )}
             </div>
             <div className="px-5 py-4">
-                <DetailRow label="korisnik">
+                <DetailRow label="Korisnik">
                     <span className="font-medium">{ticket.customer_name}</span>
                 </DetailRow>
-                <DetailRow label="kategorija">
+                <DetailRow label="Kategorija">
                     <span className="font-medium">{ticket.category ?? '—'}</span>
                 </DetailRow>
-                <DetailRow label="opis_problema">
+                <DetailRow label="Opis problema">
                     <span className="max-w-[280px] text-right font-medium">
                         {ticket.description}
                     </span>
                 </DetailRow>
-                <DetailRow label="prioritet">
+                <DetailRow label="Prioritet">
                     <span className="inline-flex items-center gap-1.5 font-medium">
                         <span className={'h-2 w-2 rounded-full ' + prio.dot} />
                         {prio.label}
                     </span>
                 </DetailRow>
-                <DetailRow label="datum_kreiranja">
+                <DetailRow label="Datum kreiranja">
                     <span className="font-mono text-xs">{formatDateTime(ticket.created_at)}</span>
                 </DetailRow>
                 {ticket.closed_at && (
-                    <DetailRow label="datum_zatvaranja">
+                    <DetailRow label="Datum zatvaranja">
                         <span className="font-mono text-xs">{formatDateTime(ticket.closed_at)}</span>
                     </DetailRow>
                 )}
                 {ticket.outcome && (
-                    <DetailRow label="ishod">
+                    <DetailRow label="Ishod">
                         <span
                             className={
                                 'rounded border px-2 py-0.5 text-xs font-medium ' +

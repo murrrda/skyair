@@ -1,4 +1,4 @@
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import { NotificationBell } from '@/components/notification-bell';
@@ -82,7 +82,7 @@ type Category = { id: number; name: string };
 type PageProps = {
     tickets: Ticket[];
     categories: Category[];
-    auth: { user: { first_name?: string; last_name?: string } | null };
+    auth: { user: { id?: number | null; first_name?: string; last_name?: string } | null };
     flash?: { success?: string };
 };
 
@@ -179,6 +179,25 @@ export default function MojiTiketi() {
 
     const initials =
         (auth.user?.first_name?.charAt(0) ?? '') + (auth.user?.last_name?.charAt(0) ?? '');
+
+    const userId = auth.user?.id ?? null;
+
+    useEffect(() => {
+        if (!userId || typeof window === 'undefined' || !window.Echo) {
+            return;
+        }
+
+        const channelName = `App.Models.User.${userId}`;
+        const channel = window.Echo.private(channelName);
+
+        channel.notification(() => {
+            router.reload({ only: ['tickets'] });
+        });
+
+        return () => {
+            window.Echo.leave(channelName);
+        };
+    }, [userId]);
 
     return (
         <>
@@ -466,30 +485,30 @@ function DetailPanel({ ticket }: { ticket: Ticket | null }) {
                     </h3>
                 </div>
                 <div className="px-5 py-4">
-                    <DetailRow label="opis_problema">
+                    <DetailRow label="Opis problema">
                         <span className="max-w-[220px] text-right">{ticket.description}</span>
                     </DetailRow>
-                    <DetailRow label="kategorija">
+                    <DetailRow label="Kategorija">
                         <span className="font-medium">{ticket.category ?? '—'}</span>
                     </DetailRow>
-                    <DetailRow label="prioritet">
+                    <DetailRow label="Prioritet">
                         <span className={'rounded px-2 py-0.5 text-xs font-medium ' + prio.className}>
                             {prio.label}
                         </span>
                     </DetailRow>
-                    <DetailRow label="status">
+                    <DetailRow label="Status">
                         <PillBadge className={stat.className}>
                             <Dot />
                             {stat.label}
                         </PillBadge>
                     </DetailRow>
-                    <DetailRow label="datum_kreiranja">
+                    <DetailRow label="Datum kreiranja">
                         <span className="font-mono text-xs font-medium">
                             {formatShortDate(ticket.created_at)}
                         </span>
                     </DetailRow>
                     {ticket.closed_at && (
-                        <DetailRow label="datum_zatvaranja">
+                        <DetailRow label="Datum zatvaranja">
                             <span className="font-mono text-xs font-medium">
                                 {formatShortDate(ticket.closed_at)}
                             </span>
