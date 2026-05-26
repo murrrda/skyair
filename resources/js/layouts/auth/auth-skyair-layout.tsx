@@ -75,6 +75,15 @@ export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLay
                     )}
 
                     {children}
+
+                    <div className="mt-6 text-center">
+                        <Link
+                            href="/kupac/pretraga-letova"
+                            className="text-sm text-muted-foreground transition hover:text-foreground"
+                        >
+                            Nastavi kao gost →
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>
