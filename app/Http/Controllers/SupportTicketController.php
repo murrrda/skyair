@@ -18,6 +18,9 @@ use Inertia\Response;
 
 class SupportTicketController extends Controller
 {
+    private const RATING_EDIT_WINDOW_HOURS = 72;
+
+
     public function index(Request $request): Response
     {
         $tickets = $request->user()
@@ -81,6 +84,71 @@ class SupportTicketController extends Controller
             ]);
         }
 
+        [$validated, $communication, $degree, $hasAdditionalContact] = $this->validateRatingPayload($request, $ticket);
+
+        DB::transaction(function () use ($ticket, $validated, $communication, $degree, $hasAdditionalContact) {
+            $rating = SupportTicketRating::create([
+                'support_ticket_id' => $ticket->id,
+                'resolution_speed' => $validated['resolution_speed'],
+                'resolution_speed_comment' => $this->normalizeComment($validated['resolution_speed_comment'] ?? null),
+                'communication_quality' => $communication,
+                'communication_quality_comment' => $hasAdditionalContact
+                    ? $this->normalizeComment($validated['communication_quality_comment'] ?? null)
+                    : null,
+                'degree_of_resolution' => $degree,
+                'degree_of_resolution_comment' => $this->normalizeComment($validated['degree_of_resolution_comment'] ?? null),
+            ]);
+
+            $this->syncAgentRatings($rating, $validated['agents']);
+        });
+
+        return back()->with('success', 'Hvala na oceni!');
+    }
+
+    public function updateRating(StoreSupportTicketRatingRequest $request, SupportTicket $ticket): RedirectResponse
+    {
+        if ($ticket->user_id !== $request->user()->id) {
+            abort(403);
+        }
+
+        $ticket->load('rating.agentRatings', 'workLogs');
+
+        if (! $ticket->rating) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Recenzija ne postoji.',
+            ]);
+        }
+
+        if (! $this->ratingIsEditable($ticket->rating)) {
+            throw ValidationException::withMessages([
+                'ticket' => 'Recenzija se više ne može menjati.',
+            ]);
+        }
+
+        [$validated, $communication, $degree, $hasAdditionalContact] = $this->validateRatingPayload($request, $ticket);
+
+        DB::transaction(function () use ($ticket, $validated, $communication, $degree, $hasAdditionalContact) {
+            $rating = $ticket->rating;
+            $rating->fill([
+                'resolution_speed' => $validated['resolution_speed'],
+                'resolution_speed_comment' => $this->normalizeComment($validated['resolution_speed_comment'] ?? null),
+                'communication_quality' => $communication,
+                'communication_quality_comment' => $hasAdditionalContact
+                    ? $this->normalizeComment($validated['communication_quality_comment'] ?? null)
+                    : null,
+                'degree_of_resolution' => $degree,
+                'degree_of_resolution_comment' => $this->normalizeComment($validated['degree_of_resolution_comment'] ?? null),
+            ])->save();
+
+            SupportTicketRatingAgent::where('support_ticket_rating_id', $rating->id)->delete();
+            $this->syncAgentRatings($rating, $validated['agents']);
+        });
+
+        return back()->with('success', 'Recenzija ažurirana.');
+    }
+
+    private function validateRatingPayload(StoreSupportTicketRatingRequest $request, SupportTicket $ticket): array
+    {
         $validated = $request->validated();
 
         $allowedAgents = $ticket->workLogs
@@ -121,30 +189,30 @@ class SupportTicketController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($ticket, $validated, $communication, $degree, $hasAdditionalContact) {
-            $rating = SupportTicketRating::create([
-                'support_ticket_id' => $ticket->id,
-                'resolution_speed' => $validated['resolution_speed'],
-                'resolution_speed_comment' => $this->normalizeComment($validated['resolution_speed_comment'] ?? null),
-                'communication_quality' => $communication,
-                'communication_quality_comment' => $hasAdditionalContact
-                    ? $this->normalizeComment($validated['communication_quality_comment'] ?? null)
-                    : null,
-                'degree_of_resolution' => $degree,
-                'degree_of_resolution_comment' => $this->normalizeComment($validated['degree_of_resolution_comment'] ?? null),
+        return [$validated, $communication, $degree, $hasAdditionalContact];
+    }
+
+    private function syncAgentRatings(SupportTicketRating $rating, array $agents): void
+    {
+        foreach ($agents as $agent) {
+            SupportTicketRatingAgent::create([
+                'support_ticket_rating_id' => $rating->id,
+                'employee_id' => $agent['employee_id'],
+                'rating' => $agent['rating'],
+                'comment' => $this->normalizeComment($agent['comment'] ?? null),
             ]);
+        }
+    }
 
-            foreach ($validated['agents'] as $agent) {
-                SupportTicketRatingAgent::create([
-                    'support_ticket_rating_id' => $rating->id,
-                    'employee_id' => $agent['employee_id'],
-                    'rating' => $agent['rating'],
-                    'comment' => $this->normalizeComment($agent['comment'] ?? null),
-                ]);
-            }
-        });
+    private function ratingIsEditable(SupportTicketRating $rating): bool
+    {
+        $createdAt = $rating->created_at;
 
-        return back()->with('success', 'Hvala na oceni!');
+        if ($createdAt === null) {
+            return false;
+        }
+
+        return $createdAt->copy()->addHours(self::RATING_EDIT_WINDOW_HOURS)->isFuture();
     }
 
     private function normalizeComment(?string $value): ?string
@@ -182,6 +250,7 @@ class SupportTicketController extends Controller
 
         $rating = null;
         if ($ticket->rating) {
+            $editableUntil = $ticket->rating->created_at?->copy()->addHours(self::RATING_EDIT_WINDOW_HOURS);
             $rating = [
                 'resolution_speed' => $ticket->rating->resolution_speed,
                 'resolution_speed_comment' => $ticket->rating->resolution_speed_comment,
@@ -190,6 +259,8 @@ class SupportTicketController extends Controller
                 'degree_of_resolution' => $ticket->rating->degree_of_resolution,
                 'degree_of_resolution_comment' => $ticket->rating->degree_of_resolution_comment,
                 'created_at' => $ticket->rating->created_at?->toIso8601String(),
+                'editable_until' => $editableUntil?->toIso8601String(),
+                'is_editable' => $editableUntil !== null && $editableUntil->isFuture(),
                 'agents' => $ticket->rating->agentRatings->map(fn ($a) => [
                     'employee_id' => (int) $a->employee_id,
                     'rating' => (int) $a->rating,

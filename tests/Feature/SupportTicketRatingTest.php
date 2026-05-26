@@ -8,6 +8,7 @@ use App\Models\SupportTicketWorkLog;
 use App\Models\User;
 use App\Models\Zaposlen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SupportTicketRatingTest extends TestCase
@@ -639,6 +640,178 @@ class SupportTicketRatingTest extends TestCase
             ->get('/support-tickets')
             ->assertInertia(fn ($page) => $page
                 ->where('tickets.0.rating_context.has_additional_contact', true)
+            );
+    }
+
+    private function submitRating(\App\Models\User $customer, SupportTicket $ticket, array $overrides = []): SupportTicket
+    {
+        $payload = array_merge([
+            'resolution_speed' => 5,
+            'degree_of_resolution' => 5,
+            'agents' => [],
+        ], $overrides);
+
+        $this->actingAs($customer)
+            ->post("/support-tickets/{$ticket->id}/rate", $payload)
+            ->assertRedirect();
+
+        return $ticket->fresh('rating.agentRatings');
+    }
+
+    public function test_update_rating_within_72_hours_overwrites_fields(): void
+    {
+        $customer = $this->makeCustomer();
+        $a1 = $this->makeAgent('First', 'Agent');
+        $a2 = $this->makeAgent('Second', 'Agent');
+
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $a1, 'taken_over');
+        $this->addWorkLog($ticket, $a2, 'closed_success');
+
+        $this->submitRating($customer, $ticket, [
+            'resolution_speed' => 3,
+            'resolution_speed_comment' => 'OK',
+            'degree_of_resolution' => 3,
+            'agents' => [
+                ['employee_id' => $a1->id, 'rating' => 3, 'comment' => 'Stara'],
+            ],
+        ]);
+
+        $this->actingAs($customer)
+            ->patch("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'resolution_speed_comment' => 'Bolje',
+                'degree_of_resolution' => 5,
+                'agents' => [
+                    ['employee_id' => $a1->id, 'rating' => 5, 'comment' => 'Nova'],
+                    ['employee_id' => $a2->id, 'rating' => 4, 'comment' => null],
+                ],
+            ])
+            ->assertRedirect();
+
+        $rating = $ticket->fresh('rating.agentRatings')->rating;
+        $this->assertSame(5, $rating->resolution_speed);
+        $this->assertSame('Bolje', $rating->resolution_speed_comment);
+        $this->assertSame(5, $rating->degree_of_resolution);
+        $this->assertCount(2, $rating->agentRatings);
+
+        $this->assertDatabaseHas('support_ticket_rating_agent', [
+            'support_ticket_rating_id' => $rating->id,
+            'employee_id' => $a1->id,
+            'rating' => 5,
+            'comment' => 'Nova',
+        ]);
+        $this->assertDatabaseHas('support_ticket_rating_agent', [
+            'support_ticket_rating_id' => $rating->id,
+            'employee_id' => $a2->id,
+            'rating' => 4,
+        ]);
+    }
+
+    public function test_update_rating_after_72_hours_is_rejected(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->submitRating($customer, $ticket, [
+            'agents' => [['employee_id' => $agent->id, 'rating' => 4]],
+        ]);
+
+        DB::table('support_ticket_rating')
+            ->where('id', $ticket->rating->id)
+            ->update(['created_at' => now()->subHours(73)]);
+
+        $this->actingAs($customer)
+            ->from('/support-tickets')
+            ->patch("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 1,
+                'degree_of_resolution' => 1,
+                'agents' => [['employee_id' => $agent->id, 'rating' => 1]],
+            ])
+            ->assertSessionHasErrors('ticket');
+
+        $fresh = $ticket->fresh('rating')->rating;
+        $this->assertSame(5, $fresh->resolution_speed);
+    }
+
+    public function test_update_rejected_when_no_rating_exists(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->actingAs($customer)
+            ->from('/support-tickets')
+            ->patch("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 5,
+                'degree_of_resolution' => 5,
+                'agents' => [['employee_id' => $agent->id, 'rating' => 5]],
+            ])
+            ->assertSessionHasErrors('ticket');
+    }
+
+    public function test_non_owner_cannot_update_someone_elses_rating(): void
+    {
+        $owner = $this->makeCustomer();
+        $other = User::factory()->create();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($owner, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->submitRating($owner, $ticket, [
+            'agents' => [['employee_id' => $agent->id, 'rating' => 4]],
+        ]);
+
+        $this->actingAs($other)
+            ->patch("/support-tickets/{$ticket->id}/rate", [
+                'resolution_speed' => 1,
+                'degree_of_resolution' => 1,
+                'agents' => [],
+            ])
+            ->assertForbidden();
+    }
+
+    public function test_serialized_rating_exposes_editable_until_and_is_editable(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->submitRating($customer, $ticket, [
+            'agents' => [['employee_id' => $agent->id, 'rating' => 4]],
+        ]);
+
+        $this->actingAs($customer)
+            ->get('/support-tickets')
+            ->assertInertia(fn ($page) => $page
+                ->where('tickets.0.rating.is_editable', true)
+                ->has('tickets.0.rating.editable_until')
+            );
+    }
+
+    public function test_serialized_rating_marks_not_editable_after_window(): void
+    {
+        $customer = $this->makeCustomer();
+        $agent = $this->makeAgent();
+        $ticket = $this->makeTicket($customer, status: 'closed', outcome: 'success');
+        $this->addWorkLog($ticket, $agent, 'closed_success');
+
+        $this->submitRating($customer, $ticket, [
+            'agents' => [['employee_id' => $agent->id, 'rating' => 4]],
+        ]);
+
+        DB::table('support_ticket_rating')
+            ->where('id', $ticket->rating->id)
+            ->update(['created_at' => now()->subHours(73)]);
+
+        $this->actingAs($customer)
+            ->get('/support-tickets')
+            ->assertInertia(fn ($page) => $page
+                ->where('tickets.0.rating.is_editable', false)
             );
     }
 
