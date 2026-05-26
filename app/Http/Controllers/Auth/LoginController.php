@@ -24,6 +24,28 @@ class LoginController extends Controller
         return redirect('/admin');
     }
 
+    public function employeeLogin(Request $request)
+    {
+        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+            return back()->withErrors(['email' => 'Pogrešni kredencijali.']);
+        }
+
+        $user = Auth::user();
+
+        if (!$user->isZaposlen()) {
+            Auth::logout();
+            return back()->withErrors(['email' => 'Ovaj nalog nije registrovan kao zaposleni.']);
+        }
+
+        $request->session()->regenerate();
+
+        if (Gate::forUser($user)->any(['is-pilot', 'is-co_pilot', 'is-crew'])) {
+            return redirect('/employee/my-flights');
+        }
+
+        return redirect('/employee/profile');
+    }
+
     public function kupacLogin(Request $request)
     {
         if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {

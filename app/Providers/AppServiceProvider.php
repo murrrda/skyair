@@ -54,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
         // Add a new Gate::define here whenever a new role string is introduced.
         Gate::define('is-admin', fn (User $user) => $user->zaposlen?->role === 'admin');
         Gate::define('is-pilot', fn (User $user) => $user->zaposlen?->role === 'pilot');
+        Gate::define('is-co_pilot', fn (User $user) => $user->zaposlen?->role === 'co_pilot');
+        Gate::define('is-crew', fn (User $user) => $user->zaposlen?->role === 'cabin_crew');
     }
 
     protected function configureDefaults(): void
