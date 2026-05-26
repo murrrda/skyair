@@ -51,7 +51,7 @@ class Zaposlen extends Model
     {
         return $this->belongsToMany(TipUgovora::class, 'ugovori', 'zaposlen_user_id', 'tip_ugovora_id')
             ->using(Ugovor::class)
-            ->withPivot(['datum_potpisivanja', 'datum_isteka', 'napomena'])
+            ->withPivot(['datum_potpisivanja', 'datum_isteka', 'napomena', 'is_active'])
             ->withTimestamps();
     }
 

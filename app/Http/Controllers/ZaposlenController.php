@@ -9,6 +9,7 @@ use App\Models\Zaposlen;
 use App\Services\ZaposlenService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -74,6 +75,7 @@ class ZaposlenController extends Controller
             'datum_potpisivanja' => $validated['datum_potpisivanja'],
             'datum_isteka' => $validated['datum_isteka'],
             'napomena' => $validated['napomena'] ?? null,
+            'is_active' => true,
         ]);
 
         return redirect()->route('admin.employee.index')
@@ -89,7 +91,7 @@ class ZaposlenController extends Controller
     {
         Gate::authorize('is-admin');
 
-        $query = Zaposlen::with(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('created_at', 'desc')]);
+        $query = Zaposlen::with(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('is_active', 'desc')->orderByPivot('created_at', 'desc')]);
 
         if ($search = $request->input('search')) {
             $query->whereHas('user', fn ($q) => $q
@@ -104,7 +106,10 @@ class ZaposlenController extends Controller
         }
 
         if ($tipUgovoraId = $request->input('tip_ugovora_id')) {
-            $query->whereHas('tipoviUgovora', fn ($q) => $q->where('tipovi_ugovora.id', $tipUgovoraId));
+            $query->whereHas('tipoviUgovora', fn ($q) => $q
+                ->where('tipovi_ugovora.id', $tipUgovoraId)
+                ->where('ugovori.is_active', true)
+            );
         }
 
         return Inertia::render('admin/ZaposlenIndex', [
@@ -128,7 +133,7 @@ class ZaposlenController extends Controller
         Gate::authorize('is-admin');
 
         return Inertia::render('admin/ZaposlenEdit', [
-            'zaposlen'      => $employee->load(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('created_at', 'desc')]),
+            'zaposlen'      => $employee->load(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('is_active', 'desc')->orderByPivot('created_at', 'desc')]),
             'tipoviUgovora' => TipUgovora::all(['id', 'naziv']),
         ]);
     }
@@ -180,22 +185,23 @@ class ZaposlenController extends Controller
             'datum_zaposlenja' => $validated['datum_zaposlenja'],
         ]);
 
-        $currentTipId = $employee->tipoviUgovora()
-            ->orderByPivot('created_at', 'desc')
-            ->first()
-            ?->id;
+        // Keep the full contract history but ensure exactly one is active.
+        DB::table('ugovori')
+            ->where('zaposlen_user_id', $employee->user_id)
+            ->update(['is_active' => false]);
 
-        if ((int) $validated['tip_ugovora_id'] !== (int) $currentTipId) {
-            $employee->tipoviUgovora()->attach($validated['tip_ugovora_id'], [
-                'datum_potpisivanja' => $validated['datum_zaposlenja'],
-                'datum_isteka'       => $validated['datum_isteka'] ?? null,
-                'napomena'           => $validated['napomena'] ?? null,
-            ]);
+        $contractPivot = [
+            'datum_potpisivanja' => $validated['datum_zaposlenja'],
+            'datum_isteka'       => $validated['datum_isteka'] ?? null,
+            'napomena'           => $validated['napomena'] ?? null,
+            'is_active'          => true,
+        ];
+
+        // Composite PK allows a type only once, so reactivate it if already held.
+        if ($employee->tipoviUgovora()->where('tipovi_ugovora.id', $validated['tip_ugovora_id'])->exists()) {
+            $employee->tipoviUgovora()->updateExistingPivot($validated['tip_ugovora_id'], $contractPivot);
         } else {
-            $employee->tipoviUgovora()->updateExistingPivot($validated['tip_ugovora_id'], [
-                'datum_isteka' => $validated['datum_isteka'] ?? null,
-                'napomena'     => $validated['napomena'] ?? null,
-            ]);
+            $employee->tipoviUgovora()->attach($validated['tip_ugovora_id'], $contractPivot);
         }
 
         return redirect()->route('admin.employee.index')
