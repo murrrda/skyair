@@ -28,6 +28,12 @@ class ZaposlenController extends Controller
     {
         Gate::authorize('is-admin');
 
+        $request->merge([
+            'gender' => $request->input('gender') ?: null,
+            'jmbg' => $request->input('jmbg') ?: null,
+            'country' => $request->input('country') ?: null,
+        ]);
+
         $validated = $request->validate([
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
@@ -35,6 +41,9 @@ class ZaposlenController extends Controller
             'date_of_birth' => ['required', 'date'],
             'address' => ['nullable', 'string', 'max:500'],
             'phone_number' => ['nullable', 'string', 'max:30'],
+            'jmbg' => ['nullable', 'string', 'digits:13'],
+            'gender' => ['nullable', 'in:male,female'],
+            'country' => ['nullable', 'string', 'max:255'],
             'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
             'datum_zaposlenja' => ['required', 'date'],
             'status' => ['required', 'string', 'in:aktivan,neaktivan,otkazan'],
@@ -68,7 +77,12 @@ class ZaposlenController extends Controller
         ]);
 
         return redirect()->route('admin.employee.index')
-            ->with('success', "Zaposlen {$user->first_name} {$user->last_name} uspješno registrovan. Privremena lozinka: {$tempPassword}");
+            ->with('success', "Zaposlen {$user->first_name} {$user->last_name} je uspješno registrovan.")
+            ->with('newEmployeeCredentials', [
+                'name' => "{$user->first_name} {$user->last_name}",
+                'email' => $user->email,
+                'password' => $tempPassword,
+            ]);
     }
 
     public function index(Request $request)

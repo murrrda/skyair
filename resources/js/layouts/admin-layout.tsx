@@ -1,7 +1,17 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
+import { LogOut } from 'lucide-react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
+import { logout } from '@/routes';
 import type { Auth } from '@/types';
 
 const NAV_LINKS = [
@@ -43,9 +53,45 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                             </Link>
                         ))}
 
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F1FB] text-xs font-semibold text-[#185FA5]">
-                            {auth?.user ? getInitials(auth.user.name) : '?'}
-                        </div>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button
+                                    type="button"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F1FB] text-xs font-semibold text-[#185FA5] outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                >
+                                    {auth?.user ? getInitials(auth.user.name) : '?'}
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                {auth?.user && (
+                                    <>
+                                        <DropdownMenuLabel className="font-normal">
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium">
+                                                    {auth.user.name}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {auth.user.email}
+                                                </span>
+                                            </div>
+                                        </DropdownMenuLabel>
+                                        <DropdownMenuSeparator />
+                                    </>
+                                )}
+                                <DropdownMenuItem asChild>
+                                    <Link
+                                        href={logout()}
+                                        as="button"
+                                        onClick={() => router.flushAll()}
+                                        className="w-full cursor-pointer"
+                                        data-test="logout-button"
+                                    >
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        Odjavi se
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </header>

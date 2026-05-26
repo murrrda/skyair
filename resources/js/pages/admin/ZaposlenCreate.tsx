@@ -51,6 +51,9 @@ export default function ZaposlenCreate({ tipoviUgovora }: Props) {
         last_name: '',
         email: '',
         date_of_birth: '',
+        jmbg: '',
+        gender: '',
+        country: '',
         phone_number: '',
         address: '',
         role: '',
@@ -143,8 +146,14 @@ export default function ZaposlenCreate({ tipoviUgovora }: Props) {
                                     className={errors.last_name ? 'border-destructive' : ''}
                                 />
                             </Field>
-                            <Field label="JMBG">
-                                <Input placeholder="1234567890123" maxLength={13} />
+                            <Field label="JMBG" error={errors.jmbg}>
+                                <Input
+                                    placeholder="1234567890123"
+                                    maxLength={13}
+                                    value={data.jmbg}
+                                    onChange={(e) => setData('jmbg', e.target.value)}
+                                    className={errors.jmbg ? 'border-destructive' : ''}
+                                />
                             </Field>
                         </div>
 
@@ -157,19 +166,24 @@ export default function ZaposlenCreate({ tipoviUgovora }: Props) {
                                     className={errors.date_of_birth ? 'border-destructive' : ''}
                                 />
                             </Field>
-                            <Field label="POL">
-                                <Select>
-                                    <SelectTrigger className="w-full">
+                            <Field label="POL" error={errors.gender}>
+                                <Select value={data.gender} onValueChange={(v) => setData('gender', v)}>
+                                    <SelectTrigger className={cn('w-full', errors.gender ? 'border-destructive' : '')}>
                                         <SelectValue placeholder="Izaberite..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="m">Muški</SelectItem>
-                                        <SelectItem value="z">Ženski</SelectItem>
+                                        <SelectItem value="male">Muški</SelectItem>
+                                        <SelectItem value="female">Ženski</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </Field>
-                            <Field label="DRZAVA">
-                                <Input placeholder="npr. Srbija" />
+                            <Field label="DRZAVA" error={errors.country}>
+                                <Input
+                                    placeholder="npr. Srbija"
+                                    value={data.country}
+                                    onChange={(e) => setData('country', e.target.value)}
+                                    className={errors.country ? 'border-destructive' : ''}
+                                />
                             </Field>
                         </div>
 

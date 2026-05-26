@@ -85,7 +85,7 @@ export default function Welcome({
                                                 ? '/kupac/login'
                                                 : role.key === 'admin'
                                                   ? '/admin/login'
-                                                  : login({ query: { role: role.key } })
+                                                  : '/employee/login'
                                         }
                                         className="group flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition hover:-translate-y-1 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                     >

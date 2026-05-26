@@ -1,6 +1,7 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Search } from 'lucide-react';
-import { useState } from 'react';
+import { Copy, Search } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,6 +56,12 @@ type Paginated<T> = {
     links: PaginationLink[];
 };
 
+type NewEmployeeCredentials = {
+    name: string;
+    email: string;
+    password: string;
+};
+
 type Props = {
     zaposleni: Paginated<ZaposlenRow>;
     tipoviUgovora: TipUgovora[];
@@ -62,6 +69,11 @@ type Props = {
         search?: string;
         role?: string;
         tip_ugovora_id?: string;
+    };
+    flash?: {
+        success?: string;
+        error?: string;
+        newEmployeeCredentials?: NewEmployeeCredentials | null;
     };
 };
 
@@ -104,7 +116,7 @@ function Initials({ name }: { name: string }) {
 // ─── Terminate dialog ─────────────────────────────────────────────────────────
 
 const RAZLOZI_OTKAZA = [
-    'Istek ugovora na određeno vrijeme',
+    'Istek ugovora na određeno vreme',
     'Sporazumni raskid radnog odnosa',
     'Otkaz od strane zaposlenika',
     'Kršenje kodeksa ponašanja',
@@ -214,8 +226,21 @@ function TerminateDialog({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Props) {
+export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters, flash }: Props) {
     const [terminateTarget, setTerminateTarget] = useState<TerminateTarget | null>(null);
+    const [credentials, setCredentials] = useState<NewEmployeeCredentials | null>(
+        flash?.newEmployeeCredentials ?? null,
+    );
+
+    useEffect(() => {
+        if (flash?.success && !flash?.newEmployeeCredentials) {
+            toast.success(flash.success);
+        }
+
+        if (flash?.error) {
+            toast.error(flash.error);
+        }
+    }, [flash?.success, flash?.error, flash?.newEmployeeCredentials]);
 
     function filter(key: string, value: string) {
         router.get(
@@ -345,7 +370,7 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                                     <div className="flex items-center gap-2">
                                         <Button asChild variant="outline" size="sm">
                                             <Link href={`/admin/employee/${z.user_id}/edit`}>
-                                                ✎ Izmijeni
+                                                ✎ Izmeni
                                             </Link>
                                         </Button>
                                         {z.status !== 'otkazan' && (
@@ -400,6 +425,76 @@ export default function ZaposlenIndex({ zaposleni, tipoviUgovora, filters }: Pro
                 target={terminateTarget}
                 onClose={() => setTerminateTarget(null)}
             />
+
+            <CredentialsDialog
+                credentials={credentials}
+                onClose={() => setCredentials(null)}
+            />
         </>
+    );
+}
+
+function CredentialsDialog({
+    credentials,
+    onClose,
+}: {
+    credentials: NewEmployeeCredentials | null;
+    onClose: () => void;
+}) {
+    function copy(value: string, label: string) {
+        navigator.clipboard.writeText(value);
+        toast.success(`${label} kopirano.`);
+    }
+
+    return (
+        <Dialog open={credentials !== null} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Pristupni podaci zaposlenog</DialogTitle>
+                </DialogHeader>
+
+                <p className="text-sm text-muted-foreground">
+                    Privremena lozinka se prikazuje samo jednom. Prosledite ove podatke
+                    zaposlenom za prijavu na <span className="font-medium">/employee/login</span>.
+                </p>
+
+                {credentials && (
+                    <div className="space-y-4">
+                        <div className="grid gap-1.5">
+                            <Label>Email</Label>
+                            <div className="flex gap-2">
+                                <Input readOnly value={credentials.email} />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => copy(credentials.email, 'Email')}
+                                >
+                                    <Copy className="size-4" />
+                                </Button>
+                            </div>
+                        </div>
+                        <div className="grid gap-1.5">
+                            <Label>Privremena lozinka</Label>
+                            <div className="flex gap-2">
+                                <Input readOnly value={credentials.password} className="font-mono" />
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() => copy(credentials.password, 'Lozinka')}
+                                >
+                                    <Copy className="size-4" />
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <DialogFooter>
+                    <Button onClick={onClose}>Zatvori</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }

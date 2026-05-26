@@ -11,6 +11,7 @@ type Props = {
         email: string;
         phone_number: string | null;
         address: string | null;
+        country: string | null;
     };
 };
 
@@ -44,7 +45,7 @@ export default function Profile({ user }: Props) {
         email:        user.email,
         phone_number: user.phone_number ?? '',
         address:      user.address ?? '',
-        country:      '',
+        country:      user.country ?? '',
     });
 
     function handleSubmit(e: React.FormEvent) {
@@ -112,11 +113,12 @@ export default function Profile({ user }: Props) {
                             />
                         </Field>
 
-                        <Field label="DRŽAVA">
+                        <Field label="DRŽAVA" error={errors.country}>
                             <Input
                                 value={data.country}
                                 onChange={(e) => setData('country', e.target.value)}
                                 placeholder="npr. Srbija"
+                                className={errors.country ? 'border-destructive' : ''}
                             />
                         </Field>
                     </div>

@@ -21,6 +21,7 @@ class EmployeeProfileController extends Controller
                 'email',
                 'phone_number',
                 'address',
+                'country',
             ]),
         ]);
     }
@@ -35,6 +36,7 @@ class EmployeeProfileController extends Controller
             'email'        => ['required', 'email', 'unique:users,email,' . $user->id],
             'phone_number' => ['nullable', 'string', 'max:30'],
             'address'      => ['nullable', 'string', 'max:500'],
+            'country'      => ['nullable', 'string', 'max:255'],
         ]);
 
         $user->update([
@@ -44,6 +46,7 @@ class EmployeeProfileController extends Controller
             'email'      => $validated['email'],
             'phone_number' => $validated['phone_number'] ?? null,
             'address'    => $validated['address'] ?? null,
+            'country'    => $validated['country'] ?? null,
         ]);
 
         return back()->with('success', 'Podaci su uspešno ažurirani.');

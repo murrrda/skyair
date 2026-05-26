@@ -92,7 +92,7 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
 
     return (
         <>
-            <Head title="Izmijeni zaposlenog" />
+            <Head title="Izmeni zaposlenog" />
 
             {/* Step indicator */}
             <div className="mb-8 flex items-center justify-center">
