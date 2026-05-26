@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\FlightController;
+use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\ReservationController;
@@ -78,6 +79,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
     Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
     Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
+    Route::get('/kupac/loyalty', [LoyaltyController::class, 'index'])->name('kupac.loyalty');
+    Route::get('/kupac/loyalty/istorija', [LoyaltyController::class, 'history'])->name('kupac.loyalty.istorija');
     Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
     Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
     Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
