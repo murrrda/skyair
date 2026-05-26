@@ -1,4 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,8 +32,8 @@ export default function PretragaLetova() {
                 <header className="w-full border-b border-border/60">
                     <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
                         <Link href="/" className="flex items-center gap-2.5">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#E6F1FB] text-sm font-bold text-[#185FA5]">
-                                SA
+                            <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
+                                <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                             </div>
                             <span className="text-[15px] font-semibold">SkyAir</span>
                         </Link>

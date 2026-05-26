@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
@@ -20,8 +21,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <header className="border-b border-border/60">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-3">
                     <Link href="/admin" className="flex items-center gap-2">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#E6F1FB] text-sm font-bold text-[#185FA5]">
-                            SA
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
+                            <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
                         <span className="text-[15px] font-semibold">SkyAir</span>
                     </Link>

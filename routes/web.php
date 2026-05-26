@@ -70,20 +70,22 @@ Route::get('/kupac/detalji-leta/{flight}', [FlightController::class, 'show'])->n
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 
-    Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
-    Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
-    Route::post('/kupac/placanje', [ReservationController::class, 'store'])->name('kupac.placanje.store');
-    Route::post('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'pay'])->name('kupac.rezervacija.plati');
-    Route::get('/kupac/detalji-rezervacije/{reservation}', [ReservationController::class, 'details'])->name('kupac.detalji-rezervacije');
-    Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
-    Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
-    Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
-    Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
-    Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
-    Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
-    Route::patch('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'updateRating'])->name('support-tickets.rate.update');
+    Route::middleware(['can:is-kupac'])->group(function () {
+        Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
+        Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
+        Route::post('/kupac/placanje', [ReservationController::class, 'store'])->name('kupac.placanje.store');
+        Route::post('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'pay'])->name('kupac.rezervacija.plati');
+        Route::get('/kupac/detalji-rezervacije/{reservation}', [ReservationController::class, 'details'])->name('kupac.detalji-rezervacije');
+        Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
+        Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
+        Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
+        Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
+        Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
+        Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
+        Route::patch('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'updateRating'])->name('support-tickets.rate.update');
+    });
 
-    Route::prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
+    Route::middleware(['can:is-agent'])->prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
         Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');
         Route::post('/{ticket}/take', [EmployeeSupportController::class, 'takeOver'])->name('take');
         Route::post('/{ticket}/request-info', [EmployeeSupportController::class, 'requestInfo'])->name('requestInfo');
@@ -94,7 +96,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
 
-    Route::prefix('employee')->name('employee.')->group(function () {
+    Route::middleware(['can:is-zaposlen'])->prefix('employee')->name('employee.')->group(function () {
         Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
         Route::get('/profile', [EmployeeProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('profile.update');
