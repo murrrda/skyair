@@ -1,5 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import { LogOut } from 'lucide-react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -8,8 +9,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Link, usePage } from '@inertiajs/react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { logout } from '@/routes';
