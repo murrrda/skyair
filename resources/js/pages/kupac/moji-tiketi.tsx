@@ -1,5 +1,5 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import InputError from '@/components/input-error';
 import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,8 @@ type TicketRating = {
     degree_of_resolution: number | null;
     degree_of_resolution_comment: string | null;
     created_at: string | null;
+    editable_until: string | null;
+    is_editable: boolean;
     agents: AgentRating[];
 };
 
@@ -807,9 +809,27 @@ type RatingFormState = {
 
 function RatingPanel({ ticket }: { ticket: Ticket }) {
     const showCommunication = ticket.rating_context.has_additional_contact;
+    const [editing, setEditing] = useState(false);
 
     if (ticket.rating) {
-        return <SubmittedRating ticket={ticket} showCommunication={showCommunication} />;
+        if (editing && ticket.rating.is_editable) {
+            return (
+                <RatingForm
+                    ticket={ticket}
+                    showCommunication={showCommunication}
+                    initialRating={ticket.rating}
+                    onCancel={() => setEditing(false)}
+                />
+            );
+        }
+
+        return (
+            <SubmittedRating
+                ticket={ticket}
+                showCommunication={showCommunication}
+                onEdit={() => setEditing(true)}
+            />
+        );
     }
 
     if (ticket.agents.length === 0) {
@@ -826,23 +846,78 @@ function RatingPanel({ ticket }: { ticket: Ticket }) {
     return <RatingForm ticket={ticket} showCommunication={showCommunication} />;
 }
 
+function useEditWindow(rating: TicketRating | null) {
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        if (!rating?.editable_until) {
+return undefined;
+}
+
+        const id = window.setInterval(() => setNow(Date.now()), 60_000);
+
+        return () => window.clearInterval(id);
+    }, [rating?.editable_until]);
+
+    if (!rating?.editable_until) {
+        return { isEditable: false, remainingMs: 0, label: 'Zaključano' };
+    }
+
+    const deadline = new Date(rating.editable_until).getTime();
+    const remaining = deadline - now;
+
+    if (remaining <= 0) {
+        return { isEditable: false, remainingMs: 0, label: 'Zaključano' };
+    }
+
+    const hours = Math.floor(remaining / 3_600_000);
+    const minutes = Math.floor((remaining % 3_600_000) / 60_000);
+    const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    return { isEditable: true, remainingMs: remaining, label };
+}
+
 function SubmittedRating({
     ticket,
     showCommunication,
+    onEdit,
 }: {
     ticket: Ticket;
     showCommunication: boolean;
+    onEdit: () => void;
 }) {
     const r = ticket.rating!;
     const ratingByAgent = new Map(r.agents.map((ar) => [ar.employee_id, ar]));
+    const editWindow = useEditWindow(r);
 
     return (
         <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="flex items-center justify-between border-b border-border px-5 py-4">
-                <h3 className="text-[15px] font-semibold tracking-tight">Vaša recenzija</h3>
-                <span className="text-[11px] text-muted-foreground">
-                    {formatShortDate(r.created_at)}
-                </span>
+                <div>
+                    <h3 className="text-[15px] font-semibold tracking-tight">Vaša recenzija</h3>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        Poslato {formatShortDate(r.created_at)}
+                    </p>
+                </div>
+                {editWindow.isEditable ? (
+                    <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-[#ecfdf5] px-2.5 py-0.5 text-[11px] font-medium text-[#059669] dark:bg-[#059669]/20 dark:text-[#6ee7b7]">
+                            Može se menjati još {editWindow.label}
+                        </span>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={onEdit}
+                        >
+                            Izmeni
+                        </Button>
+                    </div>
+                ) : (
+                    <span className="rounded-full bg-muted px-2.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        Zaključano
+                    </span>
+                )}
             </div>
             <div className="space-y-3 px-5 py-4 text-[13px]">
                 <div>
@@ -921,30 +996,55 @@ function SubmittedRating({
 function RatingForm({
     ticket,
     showCommunication,
+    initialRating,
+    onCancel,
 }: {
     ticket: Ticket;
     showCommunication: boolean;
+    initialRating?: TicketRating;
+    onCancel?: () => void;
 }) {
-    const initialAgents = useMemo<Record<number, number>>(
-        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, 0])),
-        [ticket.agents],
-    );
-    const initialSkipped = useMemo<Record<number, boolean>>(
-        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, false])),
-        [ticket.agents],
-    );
-    const initialAgentComments = useMemo<Record<number, string>>(
-        () => Object.fromEntries(ticket.agents.map((a) => [a.employee_id, ''])),
-        [ticket.agents],
-    );
+    const isEditing = !!initialRating;
+
+    const initialAgents = useMemo<Record<number, number>>(() => {
+        const base = Object.fromEntries(ticket.agents.map((a) => [a.employee_id, 0]));
+
+        if (initialRating) {
+            initialRating.agents.forEach((ar) => {
+                base[ar.employee_id] = ar.rating;
+            });
+        }
+
+        return base;
+    }, [ticket.agents, initialRating]);
+
+    const initialSkipped = useMemo<Record<number, boolean>>(() => {
+        const ratedIds = new Set((initialRating?.agents ?? []).map((ar) => ar.employee_id));
+
+        return Object.fromEntries(
+            ticket.agents.map((a) => [a.employee_id, isEditing ? !ratedIds.has(a.employee_id) : false]),
+        );
+    }, [ticket.agents, initialRating, isEditing]);
+
+    const initialAgentComments = useMemo<Record<number, string>>(() => {
+        const base = Object.fromEntries(ticket.agents.map((a) => [a.employee_id, '']));
+
+        if (initialRating) {
+            initialRating.agents.forEach((ar) => {
+                base[ar.employee_id] = ar.comment ?? '';
+            });
+        }
+
+        return base;
+    }, [ticket.agents, initialRating]);
 
     const form = useForm<RatingFormState>({
-        resolution_speed: 0,
-        resolution_speed_comment: '',
-        communication_quality: 0,
-        communication_quality_comment: '',
-        degree_of_resolution: 0,
-        degree_of_resolution_comment: '',
+        resolution_speed: initialRating?.resolution_speed ?? 0,
+        resolution_speed_comment: initialRating?.resolution_speed_comment ?? '',
+        communication_quality: initialRating?.communication_quality ?? 0,
+        communication_quality_comment: initialRating?.communication_quality_comment ?? '',
+        degree_of_resolution: initialRating?.degree_of_resolution ?? 0,
+        degree_of_resolution_comment: initialRating?.degree_of_resolution_comment ?? '',
         agents: initialAgents,
         agentComments: initialAgentComments,
         skipped: initialSkipped,
@@ -1003,10 +1103,25 @@ return;
                 })),
         }) as unknown as RatingFormState);
 
-        form.post(`/support-tickets/${ticket.id}/rate`, {
-            preserveScroll: true,
-            onSuccess: () => reset(),
-        });
+        const onSuccess = () => {
+            if (isEditing) {
+                onCancel?.();
+            } else {
+                reset();
+            }
+        };
+
+        if (isEditing) {
+            form.patch(`/support-tickets/${ticket.id}/rate`, {
+                preserveScroll: true,
+                onSuccess,
+            });
+        } else {
+            form.post(`/support-tickets/${ticket.id}/rate`, {
+                preserveScroll: true,
+                onSuccess,
+            });
+        }
     };
 
     return (
@@ -1015,9 +1130,13 @@ return;
             className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
         >
             <div className="border-b border-border px-5 py-4">
-                <h3 className="text-[15px] font-semibold tracking-tight">Ocenite tiket</h3>
+                <h3 className="text-[15px] font-semibold tracking-tight">
+                    {isEditing ? 'Izmenite recenziju' : 'Ocenite tiket'}
+                </h3>
                 <p className="mt-1 text-xs text-muted-foreground">
-                    Vaša ocena pomaže nam da poboljšamo uslugu.
+                    {isEditing
+                        ? 'Sve izmene zamenjuju prethodnu recenziju.'
+                        : 'Vaša ocena pomaže nam da poboljšamo uslugu.'}
                 </p>
             </div>
             <div className="space-y-4 px-5 py-4 text-[13px]">
@@ -1133,13 +1252,18 @@ return;
                 <InputError message={errors.degree_of_resolution} />
 
             </div>
-            <div className="flex justify-end border-t border-border px-5 py-3">
+            <div className="flex justify-end gap-2 border-t border-border px-5 py-3">
+                {isEditing && onCancel && (
+                    <Button type="button" variant="outline" onClick={onCancel}>
+                        Otkaži
+                    </Button>
+                )}
                 <Button
                     type="submit"
                     disabled={!canSubmit || processing}
                     className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
                 >
-                    Pošalji ocenu
+                    {isEditing ? 'Sačuvaj izmene' : 'Pošalji ocenu'}
                 </Button>
             </div>
         </form>
