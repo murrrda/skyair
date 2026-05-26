@@ -33,6 +33,7 @@ class EmployeeSupportController extends Controller
             ->map(fn (SupportTicket $t) => $this->serializeTicket($t));
 
         $colleagues = Zaposlen::query()
+            ->where('role', 'agent')
             ->with('user:id,first_name,last_name,name')
             ->withCount(['supportWorkLogs as open_tickets_count' => function ($q) {
                 $q->whereNull('ended_at');
