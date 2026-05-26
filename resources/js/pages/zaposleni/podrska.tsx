@@ -1,6 +1,7 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import AppLogoIcon from '@/components/app-logo-icon';
 import { NotificationBell } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
 import {
@@ -271,8 +272,8 @@ return;
             <div className="min-h-screen bg-background text-foreground">
                 <nav className="flex h-14 items-center border-b border-border bg-card px-8">
                     <Link href="/" className="mr-10 flex items-center gap-2.5">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#059669] text-sm font-bold text-white">
-                            S
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-lg bg-white">
+                            <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
                         <span className="text-[15px] font-semibold tracking-tight">SkyAir</span>
                     </Link>

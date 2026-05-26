@@ -10,8 +10,11 @@ export type User = {
     [key: string]: unknown;
 };
 
+export type UserRole = 'admin' | 'agent' | 'pilot' | 'cabin_crew' | 'dispatcher' | 'kupac' | null;
+
 export type Auth = {
     user: User;
+    role?: UserRole;
 };
 
 export type TwoFactorSetupData = {
