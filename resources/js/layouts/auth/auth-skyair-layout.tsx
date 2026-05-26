@@ -1,4 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
+import AppLogoIcon from '@/components/app-logo-icon';
 import type { AuthLayoutProps } from '@/types';
 
 export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLayoutProps & { hideTabs?: boolean }) {
@@ -10,8 +11,8 @@ export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLay
             {/* Left — blue marketing panel */}
             <div className="hidden flex-col justify-center bg-[#185FA5] p-10 text-white lg:flex">
                 <Link href="/" className="mb-8 flex items-center gap-2 font-semibold">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white/10 text-sm font-bold">
-                        SA
+                    <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
+                        <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                     </div>
                     SkyAir
                 </Link>
@@ -40,8 +41,8 @@ export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLay
                         href="/"
                         className="mb-6 flex items-center justify-center gap-2 font-semibold lg:hidden"
                     >
-                        <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#E6F1FB] text-sm font-bold text-[#185FA5]">
-                            SA
+                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
+                            <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
                         SkyAir
                     </Link>
@@ -74,6 +75,15 @@ export default function AuthSkyairLayout({ children, hideTabs = false }: AuthLay
                     )}
 
                     {children}
+
+                    <div className="mt-6 text-center">
+                        <Link
+                            href="/kupac/pretraga-letova"
+                            className="text-sm text-muted-foreground transition hover:text-foreground"
+                        >
+                            Nastavi kao gost →
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>

@@ -51,11 +51,15 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('is-putnik',   fn (User $user) => $user->putnik !== null);
         Gate::define('is-zaposlen', fn (User $user) => $user->zaposlen !== null);
 
+        // Any authenticated user that isn't an employee is treated as a customer.
+        Gate::define('is-kupac', fn (User $user) => $user->zaposlen === null);
+
         // Add a new Gate::define here whenever a new role string is introduced.
         Gate::define('is-admin', fn (User $user) => $user->zaposlen?->role === 'admin');
         Gate::define('is-pilot', fn (User $user) => $user->zaposlen?->role === 'pilot');
         Gate::define('is-co_pilot', fn (User $user) => $user->zaposlen?->role === 'co_pilot');
         Gate::define('is-crew', fn (User $user) => $user->zaposlen?->role === 'cabin_crew');
+        Gate::define('is-agent', fn (User $user) => in_array($user->zaposlen?->role, ['agent', 'admin'], true));
     }
 
     protected function configureDefaults(): void

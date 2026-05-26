@@ -17,6 +17,8 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
+            'date_of_birth' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
         return User::create([
@@ -32,5 +34,11 @@ class CreateNewUser implements CreatesNewUsers
             'gender'        => $input['gender'] ?? null,
             'country'       => $input['country'] ?? null,
         ]);
+
+        $user->putnik()->create([
+            'credit_card_number' => null,
+        ]);
+
+        return $user;
     }
 }

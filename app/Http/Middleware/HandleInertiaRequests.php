@@ -36,12 +36,14 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
+        $role = $this->resolveRole($user);
 
         return [
             ...parent::share($request),
             'name' => config('app.name'),
             'auth' => [
                 'user' => $user,
+                'role' => $role,
             ],
             'notifications' => fn () => $user ? [
                 'unread_count' => $user->unreadNotifications()->count(),
@@ -60,5 +62,18 @@ class HandleInertiaRequests extends Middleware
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    private function resolveRole(?\App\Models\User $user): ?string
+    {
+        if ($user === null) {
+            return null;
+        }
+
+        if ($user->zaposlen) {
+            return $user->zaposlen->role;
+        }
+
+        return 'kupac';
     }
 }
