@@ -2,64 +2,44 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Putnik;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class PutnikController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-    public function index()
+    public function editProfile(Request $request): Response
     {
-        //
+        return Inertia::render('kupac/edit-profile', [
+            'putnik' => $request->user()->putnik,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function updateProfile(Request $request): RedirectResponse
     {
-        //
-    }
+        $validated = $request->validate([
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,'.$request->user()->id],
+            'date_of_birth' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:255'],
+            'phone_number' => ['nullable', 'string', 'max:50'],
+        ]);
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
-    {
-        //
-    }
+        $user = $request->user();
 
-    /**
-     * Display the specified resource.
-     */
-    public function show(Putnik $putnik)
-    {
-        //
-    }
+        $user->fill($validated);
+        $user->name = $user->first_name.' '.$user->last_name;
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Putnik $putnik)
-    {
-        //
-    }
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
+        }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Putnik $putnik)
-    {
-        //
-    }
+        $user->save();
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(Putnik $putnik)
-    {
-        //
+        Inertia::flash('toast', ['type' => 'success', 'message' => 'Profil je ažuriran.']);
+
+        return to_route('kupac.profil');
     }
 }

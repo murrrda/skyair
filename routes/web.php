@@ -8,6 +8,7 @@ use App\Http\Controllers\FlightController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
+use App\Http\Controllers\PutnikController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
@@ -84,6 +85,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
         Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
         Route::patch('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'updateRating'])->name('support-tickets.rate.update');
+        Route::get('/kupac/loyalty', [LoyaltyController::class, 'index'])->name('kupac.loyalty');
+        Route::get('/kupac/loyalty/istorija', [LoyaltyController::class, 'history'])->name('kupac.loyalty.istorija');
+        Route::get('/kupac/edit-profile', [PutnikController::class, 'editProfile'])->name('kupac.profil');
+        Route::patch('/kupac/edit-profile', [PutnikController::class, 'updateProfile'])->name('kupac.profil.update');
     });
 
     Route::middleware(['can:is-agent'])->prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {

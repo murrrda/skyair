@@ -17,16 +17,24 @@ class CreateNewUser implements CreatesNewUsers
         Validator::make($input, [
             ...$this->profileRules(),
             'password' => $this->passwordRules(),
+            'date_of_birth' => ['nullable', 'date'],
+            'address' => ['nullable', 'string', 'max:255'],
         ])->validate();
 
-        return User::create([
-            'name'          => $input['first_name'] . $input['last_name'],
-            'email'         => $input['email'],
-            'first_name'    => $input['first_name'],
-            'last_name'     => $input['last_name'],
-            'password'      => $input['password'],
-            'date_of_birth' => $input['date_of_birth'],
-            'address'       => $input['address'],
+        $user = User::create([
+            'name' => $input['first_name'].' '.$input['last_name'],
+            'email' => $input['email'],
+            'first_name' => $input['first_name'],
+            'last_name' => $input['last_name'],
+            'password' => $input['password'],
+            'date_of_birth' => $input['date_of_birth'] ?? null,
+            'address' => $input['address'] ?? null,
         ]);
+
+        $user->putnik()->create([
+            'credit_card_number' => null,
+        ]);
+
+        return $user;
     }
 }
