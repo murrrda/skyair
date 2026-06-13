@@ -2,9 +2,11 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\DispatcherFlightController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\FlightController;
+use App\Http\Controllers\FlightTemplateController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
@@ -106,6 +108,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.read-all');
+
+    Route::middleware(['can:is-dispatcher'])->prefix('dispatcher')->name('dispatcher.')->group(function () {
+        Route::get('/', [DispatcherFlightController::class, 'index'])->name('index');
+        Route::get('/dostupnost-aviona', [DispatcherFlightController::class, 'availability'])->name('availability');
+        Route::get('/zakazivanje-leta', [DispatcherFlightController::class, 'create'])->name('flights.create');
+        Route::post('/zakazivanje-leta', [DispatcherFlightController::class, 'store'])->name('flights.store');
+        Route::get('/letovi/{flight}/izmena', [DispatcherFlightController::class, 'edit'])->name('flights.edit');
+        Route::patch('/letovi/{flight}', [DispatcherFlightController::class, 'update'])->name('flights.update');
+        Route::post('/suggest-plane', [DispatcherFlightController::class, 'suggestPlane'])->name('suggest-plane');
+
+        Route::get('/sabloni', [FlightTemplateController::class, 'index'])->name('sabloni.index');
+        Route::post('/sabloni', [FlightTemplateController::class, 'store'])->name('sabloni.store');
+        Route::patch('/sabloni/{template}', [FlightTemplateController::class, 'update'])->name('sabloni.update');
+        Route::delete('/sabloni/{template}', [FlightTemplateController::class, 'destroy'])->name('sabloni.destroy');
+    });
 
     Route::middleware(['can:is-zaposlen'])->prefix('employee')->name('employee.')->group(function () {
         Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
