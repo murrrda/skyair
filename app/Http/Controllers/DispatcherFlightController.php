@@ -7,10 +7,12 @@ use App\Http\Requests\UpdateFlightRequest;
 use App\Models\Flight;
 use App\Models\Plane;
 use App\Models\Route;
+use App\Models\Service;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -112,6 +114,65 @@ class DispatcherFlightController extends Controller
         $flight->update(['status' => 'in_flight']);
 
         return back()->with('success', 'Let je pokrenut.');
+    }
+
+    public function endFlight(Flight $flight): RedirectResponse
+    {
+        if ($flight->status !== 'in_flight') {
+            return back()->with('error', 'Samo letovi sa statusom "U letu" mogu biti završeni.');
+        }
+
+        $flight->load(['route', 'plane']);
+
+        DB::transaction(function () use ($flight) {
+            $flight->update(['status' => 'landed']);
+
+            $plane = $flight->plane;
+            if (! $plane) {
+                return;
+            }
+
+            $flightHours = 0;
+            if ($flight->expected_takeoff && $flight->expected_arrival) {
+                $flightHours = (int) ceil($flight->expected_takeoff->diffInMinutes($flight->expected_arrival) / 60);
+            }
+
+            $distanceKm = $flight->route?->distance_km ?? 0;
+
+            $newTotalHours = $plane->total_flight_hours + $flightHours;
+            $newHoursSinceService = $plane->hours_since_last_service + $flightHours;
+            $newMileage = $plane->total_mileage + $distanceKm;
+
+            $needsService = $plane->repair_service_interval > 0
+                && $newHoursSinceService >= $plane->repair_service_interval;
+
+            $plane->update([
+                'total_flight_hours' => $newTotalHours,
+                'total_mileage' => $newMileage,
+                'hours_since_last_service' => $needsService ? 0 : $newHoursSinceService,
+                'status' => $needsService ? 'in_service' : 'in_garage',
+            ]);
+
+            if ($needsService) {
+                Service::create([
+                    'plane_id' => $plane->id,
+                    'admin_id' => $plane->admin_id,
+                    'started' => now(),
+                    'ended' => now(),
+                    'status' => 'pending',
+                    'description' => "Redovan servis — dostignuto {$newTotalHours} letnih sati (interval: {$plane->repair_service_interval}h).",
+                    'price' => 0,
+                    'service_center' => 'TBD',
+                ]);
+            }
+        });
+
+        $plane = $flight->plane;
+        $servicedMsg = $plane?->status === 'in_service'
+            ? ' Avion je poslat na redovan servis.'
+            : '';
+
+        return back()->with('success', "Let je završen.{$servicedMsg}");
     }
 
     public function edit(Flight $flight): Response

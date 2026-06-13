@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, CalendarClock, MapPin, Pencil, Plane, Play, Plus, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CalendarClock, CircleCheck, MapPin, Pencil, Plane, Play, Plus, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,17 @@ export default function DispatcherIndex() {
         }
 
         router.post(`/dispatcher/letovi/${flightId}/pokreni`, {}, { preserveScroll: true });
+    }
+
+    function handleEndFlight(e: React.MouseEvent, flightId: number) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!confirm('Da li ste sigurni da želite da završite let?')) {
+            return;
+        }
+
+        router.post(`/dispatcher/letovi/${flightId}/zavrsi`, {}, { preserveScroll: true });
     }
 
     useEffect(() => {
@@ -162,6 +173,16 @@ export default function DispatcherIndex() {
                                                     >
                                                         <Play className="h-3 w-3" />
                                                         Pokreni
+                                                    </button>
+                                                )}
+                                                {flight.status === 'in_flight' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleEndFlight(e, flight.id)}
+                                                        className="flex items-center gap-1 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white transition hover:bg-emerald-700"
+                                                    >
+                                                        <CircleCheck className="h-3 w-3" />
+                                                        Završi
                                                     </button>
                                                 )}
                                                 <span

@@ -102,11 +102,12 @@ class DispatcherOperationsController extends Controller
                 'status' => 'waiting_for_service',
             ]);
 
+            Plane::where('id', $flight->plane_id)->update(['status' => 'in_service']);
             $flight->update(['status' => 'emergency_landing']);
         });
 
         return redirect()->route('dispatcher.index')
-            ->with('success', 'Nalog za prinudno sletanje je izdat.');
+            ->with('success', 'Nalog za prinudno sletanje je izdat. Avion je označen za servis.');
     }
 
     public function replacePlane(Flight $flight): Response
@@ -114,6 +115,7 @@ class DispatcherOperationsController extends Controller
         $flight->load(['route.startingAirport', 'route.landingAirport', 'plane']);
 
         $availablePlanes = Plane::where('status', 'in_garage')
+            ->when($flight->plane_id, fn ($q) => $q->where('id', '!=', $flight->plane_id))
             ->whereNotIn('id', function ($q) {
                 $q->select('plane_id')
                     ->from('flights')
@@ -160,7 +162,7 @@ class DispatcherOperationsController extends Controller
 
             $flight->update([
                 'plane_id' => $validated['new_plane_id'],
-                'status' => 'scheduled',
+                'status' => 'in_flight',
             ]);
         });
 

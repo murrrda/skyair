@@ -117,6 +117,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/zakazivanje-leta', [DispatcherFlightController::class, 'store'])->name('flights.store');
         Route::get('/letovi/{flight}', [DispatcherFlightController::class, 'show'])->name('flights.show');
         Route::post('/letovi/{flight}/pokreni', [DispatcherFlightController::class, 'startFlight'])->name('flights.start');
+        Route::post('/letovi/{flight}/zavrsi', [DispatcherFlightController::class, 'endFlight'])->name('flights.end');
         Route::get('/letovi/{flight}/izmena', [DispatcherFlightController::class, 'edit'])->name('flights.edit');
         Route::patch('/letovi/{flight}', [DispatcherFlightController::class, 'update'])->name('flights.update');
         Route::post('/suggest-plane', [DispatcherFlightController::class, 'suggestPlane'])->name('suggest-plane');

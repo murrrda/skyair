@@ -19,6 +19,8 @@ class Plane extends Model
         'status',
         'commissioned_at',
         'total_mileage',
+        'total_flight_hours',
+        'hours_since_last_service',
     ];
 
     protected $casts = [

@@ -1,5 +1,5 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, MapPin, Pencil, Play, RefreshCw } from 'lucide-react';
+import { AlertTriangle, CircleCheck, MapPin, Pencil, Play, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -99,6 +99,14 @@ export default function DetaljiLeta() {
         router.post(`/dispatcher/letovi/${flight.id}/pokreni`);
     }
 
+    function handleEndFlight() {
+        if (!confirm('Da li ste sigurni da želite da završite let?')) {
+            return;
+        }
+
+        router.post(`/dispatcher/letovi/${flight.id}/zavrsi`);
+    }
+
     return (
         <>
             <Head title={`Let ${flight.dep_code} → ${flight.arr_code}`} />
@@ -123,6 +131,12 @@ export default function DetaljiLeta() {
                                 <Button size="sm" onClick={handleStartFlight}>
                                     <Play className="mr-1 h-3.5 w-3.5" />
                                     Pokreni let
+                                </Button>
+                            )}
+                            {isInFlight && (
+                                <Button size="sm" variant="outline" className="border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/30" onClick={handleEndFlight}>
+                                    <CircleCheck className="mr-1 h-3.5 w-3.5" />
+                                    Završi let
                                 </Button>
                             )}
                         </div>
