@@ -39,6 +39,10 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
+        if (Gate::forUser($user)->allows('is-dispatcher')) {
+            return redirect('/dispatcher');
+        }
+
         if (Gate::forUser($user)->any(['is-pilot', 'is-co_pilot', 'is-crew'])) {
             return redirect('/employee/my-flights');
         }
