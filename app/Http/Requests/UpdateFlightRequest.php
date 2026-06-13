@@ -19,7 +19,7 @@ class UpdateFlightRequest extends FormRequest
             'plane_id' => ['nullable', 'exists:planes,id'],
             'expected_takeoff' => ['required', 'date'],
             'expected_arrival' => ['required', 'date', 'after:expected_takeoff'],
-            'status' => ['required', Rule::in(['scheduled', 'boarding', 'before_takeoff', 'in_flight', 'landed', 'delayed', 'cancelled'])],
+            'status' => ['required', Rule::in(['scheduled', 'boarding', 'before_takeoff', 'in_flight', 'landed', 'delayed', 'cancelled', 'emergency_landing'])],
         ];
     }
 }

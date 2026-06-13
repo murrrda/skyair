@@ -94,6 +94,26 @@ class DispatcherFlightController extends Controller
             ->with('success', 'Let uspešno zakazan.');
     }
 
+    public function show(Flight $flight): Response
+    {
+        $flight->load(['route.startingAirport', 'route.landingAirport', 'plane', 'routeChanges.originalRoute', 'routeChanges.newRoute', 'planeChanges.originalPlane', 'planeChanges.newPlane', 'failures']);
+
+        return Inertia::render('dispatcher/detalji-leta', [
+            'flight' => $this->serializeDetail($flight),
+        ]);
+    }
+
+    public function startFlight(Flight $flight): RedirectResponse
+    {
+        if (! in_array($flight->status, ['scheduled', 'boarding', 'before_takeoff'])) {
+            return back()->with('error', 'Let ne može biti pokrenut iz trenutnog statusa.');
+        }
+
+        $flight->update(['status' => 'in_flight']);
+
+        return back()->with('success', 'Let je pokrenut.');
+    }
+
     public function edit(Flight $flight): Response
     {
         $flight->load(['route.startingAirport', 'route.landingAirport', 'plane']);
@@ -220,6 +240,37 @@ class DispatcherFlightController extends Controller
             'status' => $flight->status,
             'ticket_count' => $flight->tickets_count ?? $flight->tickets()->count(),
         ];
+    }
+
+    private function serializeDetail(Flight $flight): array
+    {
+        $base = $this->serialize($flight);
+
+        $base['route_changes'] = $flight->routeChanges->map(fn ($rc) => [
+            'id' => $rc->id,
+            'original_route' => $rc->originalRoute?->name ?? '—',
+            'new_route' => $rc->newRoute?->name ?? '—',
+            'reason' => $rc->reason,
+            'applied_at' => $rc->applied_at?->format('d.m.Y H:i'),
+        ])->toArray();
+
+        $base['plane_changes'] = $flight->planeChanges->map(fn ($pc) => [
+            'id' => $pc->id,
+            'original_plane' => $pc->originalPlane?->model.' ('.$pc->originalPlane?->reg_number.')' ?? '—',
+            'new_plane' => $pc->newPlane?->model.' ('.$pc->newPlane?->reg_number.')' ?? '—',
+            'reason' => $pc->reason,
+            'applied_at' => $pc->applied_at?->format('d.m.Y H:i'),
+        ])->toArray();
+
+        $base['failures'] = $flight->failures->map(fn ($f) => [
+            'id' => $f->id,
+            'description' => $f->description,
+            'seriousness_level' => $f->seriousness_level,
+            'status' => $f->status,
+            'report_time' => $f->report_time?->format('d.m.Y H:i'),
+        ])->toArray();
+
+        return $base;
     }
 
     private function routeOptions(): array

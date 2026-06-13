@@ -1,10 +1,10 @@
-import { Head, Link, usePage } from '@inertiajs/react';
-import { CalendarClock, Pencil, Plane, Plus } from 'lucide-react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import { AlertTriangle, CalendarClock, MapPin, Pencil, Plane, Play, Plus, RefreshCw } from 'lucide-react';
 import { useEffect } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
-type FlightStatus = 'scheduled' | 'boarding' | 'before_takeoff' | 'in_flight' | 'landed' | 'delayed' | 'cancelled';
+type FlightStatus = 'scheduled' | 'boarding' | 'before_takeoff' | 'in_flight' | 'landed' | 'delayed' | 'cancelled' | 'emergency_landing';
 
 type Flight = {
     id: number;
@@ -38,20 +38,34 @@ const statusMeta: Record<FlightStatus, { label: string; className: string }> = {
     landed: { label: 'Sleteo', className: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' },
     delayed: { label: 'Kasni', className: 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400' },
     cancelled: { label: 'Otkazan', className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400' },
+    emergency_landing: { label: 'Prinudno sletanje', className: 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-300' },
 };
+
+const canStart = (s: FlightStatus) => s === 'scheduled' || s === 'boarding' || s === 'before_takeoff';
 
 export default function DispatcherIndex() {
     const { props } = usePage<PageProps>();
     const { flights, flash } = props;
 
+    function handleStartFlight(e: React.MouseEvent, flightId: number) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!confirm('Da li ste sigurni da želite da pokrenete let?')) {
+            return;
+        }
+
+        router.post(`/dispatcher/letovi/${flightId}/pokreni`, {}, { preserveScroll: true });
+    }
+
     useEffect(() => {
         if (flash?.success) {
-toast.success(flash.success);
-}
+            toast.success(flash.success);
+        }
 
         if (flash?.error) {
-toast.error(flash.error);
-}
+            toast.error(flash.error);
+        }
     }, [flash?.success, flash?.error]);
 
     return (
@@ -104,50 +118,103 @@ toast.error(flash.error);
                         </div>
                     ) : (
                         <div className="space-y-3">
-                            {flights.map((flight) => (
-                                <div
-                                    key={flight.id}
-                                    className="flex items-center justify-between rounded-xl border border-border bg-card p-5 shadow-sm"
-                                >
-                                    <div className="flex items-center gap-6">
-                                        <div className="min-w-[140px]">
-                                            <div className="text-lg font-bold tracking-tight">
-                                                {flight.dep_code} → {flight.arr_code}
+                            {flights.map((flight) => {
+                                const isInFlight = flight.status === 'in_flight';
+                                const isEmergency = flight.status === 'emergency_landing';
+
+                                return (
+                                    <Link
+                                        key={flight.id}
+                                        href={`/dispatcher/letovi/${flight.id}`}
+                                        className={`block rounded-xl border bg-card p-5 shadow-sm transition hover:shadow-md ${isEmergency ? 'border-red-300 bg-red-50/30 dark:border-red-800 dark:bg-red-950/20' : 'border-border'}`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-6">
+                                                <div className="min-w-[140px]">
+                                                    <div className="text-lg font-bold tracking-tight">
+                                                        {flight.dep_code} → {flight.arr_code}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {flight.dep_city} — {flight.arr_city}
+                                                    </div>
+                                                </div>
+                                                <div className="text-sm">
+                                                    <div className="font-medium">{flight.takeoff_formatted}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        → {flight.arrival_formatted}
+                                                    </div>
+                                                </div>
+                                                <div className="text-sm">
+                                                    <div className="text-xs text-muted-foreground">Avion</div>
+                                                    <div className="font-medium">{flight.plane_model}</div>
+                                                </div>
+                                                <div className="text-sm">
+                                                    <div className="text-xs text-muted-foreground">Karata</div>
+                                                    <div className="font-medium">{flight.ticket_count}</div>
+                                                </div>
                                             </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {flight.dep_city} — {flight.arr_city}
+                                            <div className="flex items-center gap-3">
+                                                {canStart(flight.status) && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => handleStartFlight(e, flight.id)}
+                                                        className="flex items-center gap-1 rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition hover:bg-primary/90"
+                                                    >
+                                                        <Play className="h-3 w-3" />
+                                                        Pokreni
+                                                    </button>
+                                                )}
+                                                <span
+                                                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusMeta[flight.status]?.className ?? ''}`}
+                                                >
+                                                    {statusMeta[flight.status]?.label ?? flight.status}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        e.stopPropagation();
+                                                        router.get(`/dispatcher/letovi/${flight.id}/izmena`);
+                                                    }}
+                                                    className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
+                                                    title="Izmeni let"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="text-sm">
-                                            <div className="font-medium">{flight.takeoff_formatted}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                                → {flight.arrival_formatted}
+
+                                        {(isInFlight || isEmergency) && (
+                                            <div className="mt-3 flex gap-2 border-t border-border pt-3">
+                                                {isInFlight && (
+                                                    <>
+                                                        <Button asChild size="sm" variant="outline">
+                                                            <Link href={`/dispatcher/letovi/${flight.id}/promena-rute`}>
+                                                                <MapPin className="mr-1 h-3.5 w-3.5" />
+                                                                Promeni rutu
+                                                            </Link>
+                                                        </Button>
+                                                        <Button asChild size="sm" variant="destructive">
+                                                            <Link href={`/dispatcher/letovi/${flight.id}/prinudno-sletanje`}>
+                                                                <AlertTriangle className="mr-1 h-3.5 w-3.5" />
+                                                                Prinudno sletanje
+                                                            </Link>
+                                                        </Button>
+                                                    </>
+                                                )}
+                                                {isEmergency && (
+                                                    <Button asChild size="sm" variant="outline">
+                                                        <Link href={`/dispatcher/letovi/${flight.id}/zamena-aviona`}>
+                                                            <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                                                            Zameni avion
+                                                        </Link>
+                                                    </Button>
+                                                )}
                                             </div>
-                                        </div>
-                                        <div className="text-sm">
-                                            <div className="text-xs text-muted-foreground">Avion</div>
-                                            <div className="font-medium">{flight.plane_model}</div>
-                                        </div>
-                                        <div className="text-sm">
-                                            <div className="text-xs text-muted-foreground">Karata</div>
-                                            <div className="font-medium">{flight.ticket_count}</div>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <span
-                                            className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${statusMeta[flight.status].className}`}
-                                        >
-                                            {statusMeta[flight.status].label}
-                                        </span>
-                                        <Link
-                                            href={`/dispatcher/letovi/${flight.id}/izmena`}
-                                            className="rounded-md p-1.5 text-muted-foreground transition hover:bg-accent hover:text-foreground"
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </Link>
-                                    </div>
-                                </div>
-                            ))}
+                                        )}
+                                    </Link>
+                                );
+                            })}
                         </div>
                     )}
                 </main>

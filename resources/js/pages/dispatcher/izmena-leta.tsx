@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type FlightStatus = 'scheduled' | 'boarding' | 'before_takeoff' | 'in_flight' | 'landed' | 'delayed' | 'cancelled';
+type FlightStatus = 'scheduled' | 'boarding' | 'before_takeoff' | 'in_flight' | 'landed' | 'delayed' | 'cancelled' | 'emergency_landing';
 
 type RouteOption = {
     id: number;
@@ -64,6 +64,7 @@ const statusOptions: { value: FlightStatus; label: string }[] = [
     { value: 'landed', label: 'Sleteo' },
     { value: 'delayed', label: 'Kasni' },
     { value: 'cancelled', label: 'Otkazan' },
+    { value: 'emergency_landing', label: 'Prinudno sletanje' },
 ];
 
 function toLocalDatetime(iso: string): string {

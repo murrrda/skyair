@@ -19,7 +19,7 @@ class StoreFlightRequest extends FormRequest
             'plane_id' => ['nullable', 'exists:planes,id'],
             'expected_takeoff' => ['required', 'date', 'after:now'],
             'expected_arrival' => ['required', 'date', 'after:expected_takeoff'],
-            'status' => ['nullable', Rule::in(['scheduled', 'boarding', 'before_takeoff', 'in_flight', 'landed', 'delayed', 'cancelled'])],
+            'status' => ['nullable', Rule::in(['scheduled', 'boarding', 'before_takeoff', 'in_flight', 'landed', 'delayed', 'cancelled', 'emergency_landing'])],
         ];
     }
 }

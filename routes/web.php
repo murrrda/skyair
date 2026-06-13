@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\DispatcherFlightController;
+use App\Http\Controllers\DispatcherOperationsController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\FlightController;
@@ -114,9 +115,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/dostupnost-aviona', [DispatcherFlightController::class, 'availability'])->name('availability');
         Route::get('/zakazivanje-leta', [DispatcherFlightController::class, 'create'])->name('flights.create');
         Route::post('/zakazivanje-leta', [DispatcherFlightController::class, 'store'])->name('flights.store');
+        Route::get('/letovi/{flight}', [DispatcherFlightController::class, 'show'])->name('flights.show');
+        Route::post('/letovi/{flight}/pokreni', [DispatcherFlightController::class, 'startFlight'])->name('flights.start');
         Route::get('/letovi/{flight}/izmena', [DispatcherFlightController::class, 'edit'])->name('flights.edit');
         Route::patch('/letovi/{flight}', [DispatcherFlightController::class, 'update'])->name('flights.update');
         Route::post('/suggest-plane', [DispatcherFlightController::class, 'suggestPlane'])->name('suggest-plane');
+
+        Route::get('/letovi/{flight}/promena-rute', [DispatcherOperationsController::class, 'changeRoute'])->name('flights.change-route');
+        Route::post('/letovi/{flight}/promena-rute', [DispatcherOperationsController::class, 'storeRouteChange'])->name('flights.store-route-change');
+        Route::get('/letovi/{flight}/prinudno-sletanje', [DispatcherOperationsController::class, 'emergencyLanding'])->name('flights.emergency-landing');
+        Route::post('/letovi/{flight}/prinudno-sletanje', [DispatcherOperationsController::class, 'storeEmergencyLanding'])->name('flights.store-emergency-landing');
+        Route::get('/letovi/{flight}/zamena-aviona', [DispatcherOperationsController::class, 'replacePlane'])->name('flights.replace-plane');
+        Route::post('/letovi/{flight}/zamena-aviona', [DispatcherOperationsController::class, 'storeReplacePlane'])->name('flights.store-replace-plane');
 
         Route::get('/sabloni', [FlightTemplateController::class, 'index'])->name('sabloni.index');
         Route::post('/sabloni', [FlightTemplateController::class, 'store'])->name('sabloni.store');
