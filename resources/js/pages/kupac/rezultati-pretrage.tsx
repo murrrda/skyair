@@ -1,8 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import KupacHeader from '@/components/kupac-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
 
 interface Flight {
     id: number;
@@ -40,14 +40,26 @@ interface Props {
 }
 
 function formatPrice(price: number | null) {
-    if (price === null) return '—';
+    if (price === null) {
+return '—';
+}
+
     return price.toLocaleString('sr-RS') + ' RSD';
 }
 
 function occupancyTag(pct: number | null) {
-    if (pct === null) return null;
-    if (pct >= 80) return { label: 'Visoka popunjenost', color: 'bg-[#E1F5EE] text-[#0F6E56]' };
-    if (pct <= 35) return { label: 'Niska popunjenost', color: 'bg-[#FAEEDA] text-[#854F0B]' };
+    if (pct === null) {
+return null;
+}
+
+    if (pct >= 80) {
+return { label: 'Visoka popunjenost', color: 'bg-[#E1F5EE] text-[#0F6E56]' };
+}
+
+    if (pct <= 35) {
+return { label: 'Niska popunjenost', color: 'bg-[#FAEEDA] text-[#854F0B]' };
+}
+
     return null;
 }
 
@@ -148,6 +160,7 @@ export default function RezultatiPretrage({ flights = [], query = {}, filters = 
                         <div className="space-y-3">
                             {flights.map((f) => {
                                 const tag = occupancyTag(f.occupancy_pct);
+
                                 return (
                                     <div key={f.id} className="grid grid-cols-[1fr_auto] rounded-xl border border-border bg-card p-4">
                                         <div className="flex items-center gap-5">

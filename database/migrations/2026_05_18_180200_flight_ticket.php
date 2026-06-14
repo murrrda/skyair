@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('flight_tickets', function(Blueprint $table) {
+        Schema::create('flight_tickets', function (Blueprint $table) {
             $table->id();
             $table->string('passenger_first_name');
             $table->string('passenger_last_name');
@@ -29,8 +29,5 @@ return new class extends Migration
     /**
      * Reverse the migrations.
      */
-    public function down(): void
-    {
-
-    }
+    public function down(): void {}
 };

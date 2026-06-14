@@ -21,7 +21,9 @@ interface Props {
     };
 }
 
-function fmt(n: number) { return n.toLocaleString('sr-RS') + ' RSD'; }
+function fmt(n: number) {
+ return n.toLocaleString('sr-RS') + ' RSD'; 
+}
 
 export default function PotvrdaRezervacije({ reservation }: Props) {
     if (!reservation) {

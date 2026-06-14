@@ -611,7 +611,7 @@ class SupportTicketRatingTest extends TestCase
             'last_name' => null,
             'name' => 'Marko Marković',
         ]);
-        \App\Models\Zaposlen::create([
+        Zaposlen::create([
             'user_id' => $user->id,
             'role' => 'agent',
             'datum_zaposlenja' => now()->toDateString(),
@@ -643,7 +643,7 @@ class SupportTicketRatingTest extends TestCase
             );
     }
 
-    private function submitRating(\App\Models\User $customer, SupportTicket $ticket, array $overrides = []): SupportTicket
+    private function submitRating(User $customer, SupportTicket $ticket, array $overrides = []): SupportTicket
     {
         $payload = array_merge([
             'resolution_speed' => 5,

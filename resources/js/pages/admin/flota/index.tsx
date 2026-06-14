@@ -53,6 +53,7 @@ export default function FlotaIndex() {
         if (flash?.success) {
             toast.success(flash.success);
         }
+
         if (flash?.error) {
             toast.error(flash.error);
         }
@@ -62,6 +63,7 @@ export default function FlotaIndex() {
         if (!confirm(`Da li ste sigurni da želite da obrišete avion ${plane.reg_number} (${plane.model})?`)) {
             return;
         }
+
         router.delete(`/admin/flota/${plane.id}`, { preserveScroll: true });
     }
 

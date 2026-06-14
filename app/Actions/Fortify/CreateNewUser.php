@@ -22,17 +22,17 @@ class CreateNewUser implements CreatesNewUsers
         ])->validate();
 
         return User::create([
-            'name'          => $input['first_name'] . $input['last_name'],
-            'email'         => $input['email'],
-            'first_name'    => $input['first_name'],
-            'last_name'     => $input['last_name'],
-            'password'      => $input['password'],
+            'name' => $input['first_name'].$input['last_name'],
+            'email' => $input['email'],
+            'first_name' => $input['first_name'],
+            'last_name' => $input['last_name'],
+            'password' => $input['password'],
             'date_of_birth' => $input['date_of_birth'],
-            'address'       => $input['address'],
-            'phone_number'  => $input['phone_number'] ?? null,
-            'jmbg'          => $input['jmbg'] ?? null,
-            'gender'        => $input['gender'] ?? null,
-            'country'       => $input['country'] ?? null,
+            'address' => $input['address'],
+            'phone_number' => $input['phone_number'] ?? null,
+            'jmbg' => $input['jmbg'] ?? null,
+            'gender' => $input['gender'] ?? null,
+            'country' => $input['country'] ?? null,
         ]);
 
         $user->putnik()->create([

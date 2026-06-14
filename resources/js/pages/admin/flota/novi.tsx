@@ -1,7 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlaneFormData, PlaneFormFields } from './plane-form-fields';
+import type { PlaneFormData} from './plane-form-fields';
+import { PlaneFormFields } from './plane-form-fields';
 
 export default function NoviAvion() {
     const { data, setData, post, processing, errors } = useForm<PlaneFormData>({

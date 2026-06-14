@@ -1,12 +1,12 @@
 import { Form, Head } from '@inertiajs/react';
 import InputError from '@/components/input-error';
 import PasswordInput from '@/components/password-input';
-import AuthSkyairLayout from '@/layouts/auth/auth-skyair-layout';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import AuthSkyairLayout from '@/layouts/auth/auth-skyair-layout';
 
 type Props = {
     status?: string;

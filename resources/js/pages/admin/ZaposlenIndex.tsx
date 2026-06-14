@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
     Dialog,
     DialogContent,
@@ -12,6 +11,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
@@ -145,7 +145,11 @@ function TerminateDialog({
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (!target) return;
+
+        if (!target) {
+return;
+}
+
         destroy(`/admin/employee/${target.user_id}`, {
             onSuccess: handleClose,
         });

@@ -15,6 +15,7 @@ class RegisterController extends Controller
         $user = $creator->create($request->all());
         event(new Registered($user));
         Auth::login($user);
+
         return redirect()->intended('/kupac/pretraga-letova');
     }
 
@@ -23,6 +24,7 @@ class RegisterController extends Controller
         $user = $creator->create($request->all());
         event(new Registered($user));
         Auth::login($user);
+
         return redirect()->intended(config('fortify.home'));
     }
 }

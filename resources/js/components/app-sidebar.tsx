@@ -1,5 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
-import { CalendarClock, Headset, LayoutGrid, Plane, PlaneTakeoff, Ticket, Users, Warehouse } from 'lucide-react';
+import { CalendarClock, Headset, LayoutGrid, Plane, PlaneTakeoff, Tag, Ticket, Users, Warehouse } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -33,6 +33,7 @@ const agentNav: NavItem[] = [
 const adminNav: NavItem[] = [
     { title: 'Admin panel', href: admin.index().url, icon: LayoutGrid },
     { title: 'Zaposleni', href: admin.employee.index().url, icon: Users },
+    { title: 'Kategorije tiketa', href: '/admin/kategorije', icon: Tag },
 ];
 
 const dispatcherNav: NavItem[] = [

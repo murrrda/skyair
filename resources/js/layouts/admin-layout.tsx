@@ -16,6 +16,7 @@ import type { Auth } from '@/types';
 
 const NAV_LINKS = [
     { label: 'Zaposleni', href: '/admin/employee' },
+    { label: 'Kategorije tiketa', href: '/admin/kategorije' },
     { label: 'Incidenti', href: '/admin/incidenti' },
     { label: 'Performanse', href: '/admin/performanse' },
 ];

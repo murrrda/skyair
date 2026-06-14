@@ -77,6 +77,7 @@ export default function Welcome({
                         <div className="grid gap-6 sm:grid-cols-3">
                             {roles.map((role) => {
                                 const Icon = role.icon;
+
                                 return (
                                     <Link
                                         key={role.key}

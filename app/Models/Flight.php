@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHumanReadableNumber;
 use Illuminate\Database\Eloquent\Model;
 
 class Flight extends Model
 {
+    use HasHumanReadableNumber;
+
     protected $fillable = [
         'plane_id',
         'route_id',
@@ -23,6 +26,11 @@ class Flight extends Model
         'longitude' => 'decimal:6',
         'latitude' => 'decimal:6',
     ];
+
+    public static function numberPrefix(): string
+    {
+        return 'FL';
+    }
 
     public function plane()
     {

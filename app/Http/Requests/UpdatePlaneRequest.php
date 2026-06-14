@@ -24,7 +24,7 @@ class UpdatePlaneRequest extends FormRequest
             'range_km' => ['required', 'integer', 'min:1'],
             'max_speed' => ['required', 'integer', 'min:1'],
             'repair_service_interval' => ['required', 'integer', 'min:1'],
-            'model_year' => ['required', 'integer', 'min:1950', 'max:' . (date('Y') + 2)],
+            'model_year' => ['required', 'integer', 'min:1950', 'max:'.(date('Y') + 2)],
             'status' => ['required', Rule::in(['in_garage', 'in_flight', 'in_service'])],
             'commissioned_at' => ['nullable', 'date'],
             'total_mileage' => ['required', 'integer', 'min:0'],

@@ -64,7 +64,9 @@ const DOT_CLASS: Record<string, string> = {
     pending: 'bg-[#D3D1C7]',
 };
 
-function fmt(n: number) { return n.toLocaleString('sr-RS') + ' RSD'; }
+function fmt(n: number) {
+ return n.toLocaleString('sr-RS') + ' RSD'; 
+}
 
 export default function DetaljiRezervacije({ reservation }: Props) {
     if (!reservation) {

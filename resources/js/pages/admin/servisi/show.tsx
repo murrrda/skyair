@@ -35,7 +35,10 @@ const statusMeta: Record<ServiceStatus, { label: string; className: string }> = 
 };
 
 function formatDateTime(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) {
+return '—';
+}
+
     return new Date(iso).toLocaleString('sr-RS', {
         day: '2-digit',
         month: '2-digit',
@@ -54,14 +57,20 @@ export default function ServisDetalji() {
     const { service, flash } = props;
 
     useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
+        if (flash?.success) {
+toast.success(flash.success);
+}
+
+        if (flash?.error) {
+toast.error(flash.error);
+}
     }, [flash?.success, flash?.error]);
 
     function handleComplete() {
         if (!confirm('Da li ste sigurni da želite da označite servis kao završen? Avion će biti vraćen u hangar.')) {
             return;
         }
+
         router.post(`/admin/servisi/${service.id}/zavrsi`, {}, { preserveScroll: true });
     }
 

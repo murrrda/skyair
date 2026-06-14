@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Map, Plane, Ticket, Users } from 'lucide-react';
+import { Map, Plane, Tag, Ticket, Users } from 'lucide-react';
 
 const sections = [
     {
@@ -29,6 +29,13 @@ const sections = [
         description: 'Upravljanje rutama (polazni i krajnji aerodrom)',
         href: '/admin/rute',
         icon: Map,
+    },
+    {
+        key: 'kategorije',
+        title: 'KATEGORIJE TIKETA',
+        description: 'Pregled kategorija i obaveznih polja za NLP',
+        href: '/admin/kategorije',
+        icon: Tag,
     },
 ];
 

@@ -128,13 +128,13 @@ return new class extends Migration
 
     public function down(): void
     {
-        DB::unprepared("
+        DB::unprepared('
             DROP TRIGGER IF EXISTS before_insert_putnici  ON putnici;
             DROP TRIGGER IF EXISTS before_insert_zaposleni ON zaposleni;
             DROP FUNCTION  IF EXISTS guard_putnik_not_zaposlen;
             DROP FUNCTION  IF EXISTS guard_zaposlen_not_putnik;
             DROP PROCEDURE IF EXISTS kreiraj_putnika;
             DROP PROCEDURE IF EXISTS kreiraj_zaposlenog;
-        ");
+        ');
     }
 };

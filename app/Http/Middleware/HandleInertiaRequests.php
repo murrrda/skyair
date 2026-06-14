@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -64,7 +65,7 @@ class HandleInertiaRequests extends Middleware
         ];
     }
 
-    private function resolveRole(?\App\Models\User $user): ?string
+    private function resolveRole(?User $user): ?string
     {
         if ($user === null) {
             return null;

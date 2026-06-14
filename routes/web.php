@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DispatcherFlightController;
 use App\Http\Controllers\DispatcherOperationsController;
 use App\Http\Controllers\EmployeeProfileController;
@@ -63,6 +64,8 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/rute/{route}/uredi', [RouteController::class, 'edit'])->name('rute.edit');
     Route::patch('/rute/{route}', [RouteController::class, 'update'])->name('rute.update');
     Route::delete('/rute/{route}', [RouteController::class, 'destroy'])->name('rute.destroy');
+
+    Route::get('/kategorije', [CategoryController::class, 'index'])->name('kategorije.index');
 
     Route::get('/flota/{plane}/servisi', [ServiceController::class, 'planeIndex'])->name('flota.servisi.index');
     Route::get('/flota/{plane}/servisi/novi', [ServiceController::class, 'planeCreate'])->name('flota.servisi.create');

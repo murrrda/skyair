@@ -22,6 +22,6 @@ class PingJob implements ShouldQueue
      */
     public function handle(): void
     {
-        logger()->info('PingJob ran at ' . now()->toIso8601String());
+        logger()->info('PingJob ran at '.now()->toIso8601String());
     }
 }
