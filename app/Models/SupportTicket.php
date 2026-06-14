@@ -85,4 +85,9 @@ class SupportTicket extends Model
     {
         return $this->hasOne(SupportTicketRating::class);
     }
+
+    public function extractionLogs(): HasMany
+    {
+        return $this->hasMany(ExtractionLog::class);
+    }
 }
