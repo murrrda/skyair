@@ -12,6 +12,11 @@ class CategoryField extends Model
         'field_name',
         'field_type',
         'required',
+        'display_label',
+        'prompt',
+        'validation_rule',
+        'reference_table',
+        'reference_column',
     ];
 
     protected function casts(): array

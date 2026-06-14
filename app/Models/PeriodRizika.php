@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\PeriodRizikaFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PeriodRizika extends Model
 {
-    /** @use HasFactory<\Database\Factories\PeriodRizikaFactory> */
+    /** @use HasFactory<PeriodRizikaFactory> */
     use HasFactory;
 
     protected $table = 'periodi_rizika';
@@ -18,7 +19,7 @@ class PeriodRizika extends Model
 
     protected $casts = [
         'datum_pocetka' => 'date',
-        'datum_kraja'   => 'date',
+        'datum_kraja' => 'date',
     ];
 
     public function razlog(): BelongsTo

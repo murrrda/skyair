@@ -6,6 +6,7 @@ use App\Http\Requests\StoreRouteRequest;
 use App\Http\Requests\UpdateRouteRequest;
 use App\Models\Airport;
 use App\Models\Route;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -62,7 +63,7 @@ class RouteController extends Controller
     {
         try {
             $route->delete();
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if ($e->getCode() === '23503') {
                 return back()->with('error', 'Ruta ne može biti obrisana jer je vezana za letove ili stajališta.');
             }

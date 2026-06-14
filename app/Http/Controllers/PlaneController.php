@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StorePlaneRequest;
 use App\Http\Requests\UpdatePlaneRequest;
 use App\Models\Plane;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,7 +60,7 @@ class PlaneController extends Controller
     {
         try {
             $plane->delete();
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // FK constraint violation — plane is referenced by flights/services/etc.
             if ($e->getCode() === '23503') {
                 return back()->with('error', 'Avion ne može biti obrisan jer je vezan za letove, servise ili kvarove.');

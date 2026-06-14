@@ -85,7 +85,7 @@ class SupportTicketObserver
 
         EmailQueue::create([
             'recipient_email' => (string) $owner->email,
-            'subject' => 'SkyAir — promena statusa za tiket #' . $ticket->number,
+            'subject' => 'SkyAir — promena statusa za tiket #'.$ticket->number,
             'body' => $this->buildEmailBody($ticket, $statusFrom, $statusTo, $name === null ? null : (string) $name),
         ]);
     }
@@ -93,21 +93,21 @@ class SupportTicketObserver
     private function buildEmailBody(SupportTicket $ticket, ?string $from, string $to, ?string $recipientName): string
     {
         $lines = [];
-        $lines[] = 'Poštovani ' . ($recipientName ?: 'korisniče') . ',';
+        $lines[] = 'Poštovani '.($recipientName ?: 'korisniče').',';
         $lines[] = '';
         $lines[] = "Status vašeg tiketa #{$ticket->number} je ažuriran.";
         $lines[] = '';
-        $lines[] = 'Tiket: ' . $ticket->number;
-        $lines[] = 'Stari status: ' . SupportTicket::statusLabel($from);
-        $lines[] = 'Novi status: ' . SupportTicket::statusLabel($to);
+        $lines[] = 'Tiket: '.$ticket->number;
+        $lines[] = 'Stari status: '.SupportTicket::statusLabel($from);
+        $lines[] = 'Novi status: '.SupportTicket::statusLabel($to);
 
         if ($ticket->category) {
-            $lines[] = 'Kategorija: ' . $ticket->category->name;
+            $lines[] = 'Kategorija: '.$ticket->category->name;
         }
 
-        $lines[] = 'Datum: ' . now()->toDateTimeString();
+        $lines[] = 'Datum: '.now()->toDateTimeString();
         $lines[] = '';
-        $lines[] = 'Možete pratiti tiket na: ' . url('/support-tickets');
+        $lines[] = 'Možete pratiti tiket na: '.url('/support-tickets');
         $lines[] = '';
         $lines[] = 'Hvala što koristite SkyAir.';
 

@@ -39,16 +39,35 @@ type Tab = typeof TABS[number]['key'];
 
 function getGreeting(): string {
     const h = new Date().getHours();
-    if (h < 12) return 'Dobro jutro';
-    if (h < 18) return 'Dobar dan';
+
+    if (h < 12) {
+return 'Dobro jutro';
+}
+
+    if (h < 18) {
+return 'Dobar dan';
+}
+
     return 'Dobro veče';
 }
 
 function filterFlights(flights: Flight[], tab: Tab): Flight[] {
-    if (tab === 'all') return flights;
-    if (tab === 'upcoming') return flights.filter((f) => f.status === 'confirmed' || f.status === 'changed');
-    if (tab === 'completed') return flights.filter((f) => f.status === 'completed');
-    if (tab === 'cancelled') return flights.filter((f) => f.status === 'cancelled');
+    if (tab === 'all') {
+return flights;
+}
+
+    if (tab === 'upcoming') {
+return flights.filter((f) => f.status === 'confirmed' || f.status === 'changed');
+}
+
+    if (tab === 'completed') {
+return flights.filter((f) => f.status === 'completed');
+}
+
+    if (tab === 'cancelled') {
+return flights.filter((f) => f.status === 'cancelled');
+}
+
     return flights;
 }
 

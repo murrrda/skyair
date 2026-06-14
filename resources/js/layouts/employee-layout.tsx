@@ -2,8 +2,8 @@ import { Link, usePage } from '@inertiajs/react';
 import { useState, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import AppLogoIcon from '@/components/app-logo-icon';
-import { useInitials } from '@/hooks/use-initials';
 import { NotificationBell } from '@/components/notification-bell';
+import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import type { Auth } from '@/types';
 
@@ -21,7 +21,9 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (flash?.success) toast.success(flash.success, { duration: 2000 });
+        if (flash?.success) {
+toast.success(flash.success, { duration: 2000 });
+}
     }, [flash?.success]);
 
     useEffect(() => {
@@ -31,6 +33,7 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
+
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 

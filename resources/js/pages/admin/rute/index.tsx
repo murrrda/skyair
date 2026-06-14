@@ -28,8 +28,15 @@ type PageProps = {
 function formatDuration(minutes: number): string {
     const h = Math.floor(minutes / 60);
     const m = minutes % 60;
-    if (h === 0) return `${m} min`;
-    if (m === 0) return `${h}h`;
+
+    if (h === 0) {
+return `${m} min`;
+}
+
+    if (m === 0) {
+return `${h}h`;
+}
+
     return `${h}h ${m}m`;
 }
 
@@ -42,14 +49,20 @@ export default function RuteIndex() {
     const { routes, flash } = props;
 
     useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
+        if (flash?.success) {
+toast.success(flash.success);
+}
+
+        if (flash?.error) {
+toast.error(flash.error);
+}
     }, [flash?.success, flash?.error]);
 
     function handleDelete(route: Route) {
         if (!confirm(`Da li ste sigurni da želite da obrišete rutu "${route.name}"?`)) {
             return;
         }
+
         router.delete(`/admin/rute/${route.id}`, { preserveScroll: true });
     }
 

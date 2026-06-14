@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use Database\Factories\RazlogFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Razlog extends Model
 {
-    /** @use HasFactory<\Database\Factories\RazlogFactory> */
+    /** @use HasFactory<RazlogFactory> */
     use HasFactory;
 
     protected $table = 'razlozi';

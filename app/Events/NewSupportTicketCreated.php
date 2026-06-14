@@ -31,7 +31,7 @@ class NewSupportTicketCreated implements ShouldBroadcast
         $customerName = 'Korisnik';
 
         if ($customer) {
-            $full = trim(($customer->first_name ?? '') . ' ' . ($customer->last_name ?? ''));
+            $full = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $customerName = $full !== '' ? $full : ($customer->name ?? 'Korisnik');
         }
 

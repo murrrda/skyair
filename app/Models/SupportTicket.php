@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasHumanReadableNumber;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,8 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SupportTicket extends Model
 {
+    use HasHumanReadableNumber;
+
     public const STATUS_LABELS = [
         'open' => 'Otvoren',
         'in_progress' => 'U rešavanju',
@@ -27,6 +30,11 @@ class SupportTicket extends Model
     }
 
     protected $table = 'support_ticket';
+
+    public static function numberPrefix(): string
+    {
+        return 'ST';
+    }
 
     protected $fillable = [
         'user_id',

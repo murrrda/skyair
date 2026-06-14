@@ -1,7 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import KupacHeader from '@/components/kupac-header';
 import { Button } from '@/components/ui/button';
-import { useState } from 'react';
 
 interface Reservation {
     id: number;
@@ -85,6 +85,7 @@ export default function MojiLetovi({ reservations = [] }: Props) {
                             {filtered.map((r) => {
                                 const style = STATUS_STYLES[r.status] ?? STATUS_STYLES.kreirana;
                                 const isPastOrCancelled = r.is_past || r.status === 'otkazana';
+
                                 return (
                                     <div
                                         key={r.id}

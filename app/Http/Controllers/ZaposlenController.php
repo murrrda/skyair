@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Actions\Fortify\CreateNewUser;
 use App\Models\TipUgovora;
-use App\Models\User;
 use App\Models\Zaposlen;
 use App\Services\ZaposlenService;
 use Illuminate\Auth\Events\Registered;
@@ -95,9 +94,9 @@ class ZaposlenController extends Controller
 
         if ($search = $request->input('search')) {
             $query->whereHas('user', fn ($q) => $q
-                ->whereRaw('lower(first_name) like ?', ['%' . strtolower($search) . '%'])
-                ->orWhereRaw('lower(last_name) like ?', ['%' . strtolower($search) . '%'])
-                ->orWhereRaw('lower(email) like ?', ['%' . strtolower($search) . '%'])
+                ->whereRaw('lower(first_name) like ?', ['%'.strtolower($search).'%'])
+                ->orWhereRaw('lower(last_name) like ?', ['%'.strtolower($search).'%'])
+                ->orWhereRaw('lower(email) like ?', ['%'.strtolower($search).'%'])
             );
         }
 
@@ -113,9 +112,9 @@ class ZaposlenController extends Controller
         }
 
         return Inertia::render('admin/ZaposlenIndex', [
-            'zaposleni'     => $query->paginate(10)->withQueryString(),
+            'zaposleni' => $query->paginate(10)->withQueryString(),
             'tipoviUgovora' => TipUgovora::all(['id', 'naziv']),
-            'filters'       => $request->only(['search', 'role', 'tip_ugovora_id']),
+            'filters' => $request->only(['search', 'role', 'tip_ugovora_id']),
         ]);
     }
 
@@ -133,7 +132,7 @@ class ZaposlenController extends Controller
         Gate::authorize('is-admin');
 
         return Inertia::render('admin/ZaposlenEdit', [
-            'zaposlen'      => $employee->load(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('is_active', 'desc')->orderByPivot('created_at', 'desc')]),
+            'zaposlen' => $employee->load(['user', 'tipoviUgovora' => fn ($q) => $q->orderByPivot('is_active', 'desc')->orderByPivot('created_at', 'desc')]),
             'tipoviUgovora' => TipUgovora::all(['id', 'naziv']),
         ]);
     }
@@ -151,37 +150,37 @@ class ZaposlenController extends Controller
         ]);
 
         $validated = $request->validate([
-            'first_name'      => ['required', 'string', 'max:255'],
-            'last_name'       => ['required', 'string', 'max:255'],
-            'email'           => ['required', 'email', 'unique:users,email,'.$user->id],
-            'date_of_birth'   => ['required', 'date'],
-            'address'         => ['nullable', 'string', 'max:500'],
-            'phone_number'    => ['nullable', 'string', 'max:30'],
-            'jmbg'            => ['required', 'string', 'digits:13'],
-            'gender'          => ['nullable', 'in:male,female'],
-            'country'         => ['nullable', 'string', 'max:255'],
-            'role'            => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email,'.$user->id],
+            'date_of_birth' => ['required', 'date'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'phone_number' => ['nullable', 'string', 'max:30'],
+            'jmbg' => ['required', 'string', 'digits:13'],
+            'gender' => ['nullable', 'in:male,female'],
+            'country' => ['nullable', 'string', 'max:255'],
+            'role' => ['required', 'string', 'in:admin,pilot,dispatcher,agent,cabin_crew'],
             'datum_zaposlenja' => ['required', 'date'],
-            'tip_ugovora_id'  => ['required', 'exists:tipovi_ugovora,id'],
-            'datum_isteka'    => ['nullable', 'date'],
-            'napomena'        => ['nullable', 'string'],
+            'tip_ugovora_id' => ['required', 'exists:tipovi_ugovora,id'],
+            'datum_isteka' => ['nullable', 'date'],
+            'napomena' => ['nullable', 'string'],
         ]);
 
         $user->update([
-            'first_name'   => $validated['first_name'],
-            'last_name'    => $validated['last_name'],
-            'name'         => $validated['first_name'].' '.$validated['last_name'],
-            'email'        => $validated['email'],
+            'first_name' => $validated['first_name'],
+            'last_name' => $validated['last_name'],
+            'name' => $validated['first_name'].' '.$validated['last_name'],
+            'email' => $validated['email'],
             'date_of_birth' => $validated['date_of_birth'],
-            'address'      => $validated['address'] ?? null,
+            'address' => $validated['address'] ?? null,
             'phone_number' => $validated['phone_number'] ?? null,
-            'jmbg'         => $validated['jmbg'] ?? null,
-            'gender'       => $validated['gender'] ?? null,
-            'country'      => $validated['country'] ?? null,
+            'jmbg' => $validated['jmbg'] ?? null,
+            'gender' => $validated['gender'] ?? null,
+            'country' => $validated['country'] ?? null,
         ]);
 
         $employee->update([
-            'role'            => $validated['role'],
+            'role' => $validated['role'],
             'datum_zaposlenja' => $validated['datum_zaposlenja'],
         ]);
 
@@ -192,9 +191,9 @@ class ZaposlenController extends Controller
 
         $contractPivot = [
             'datum_potpisivanja' => $validated['datum_zaposlenja'],
-            'datum_isteka'       => $validated['datum_isteka'] ?? null,
-            'napomena'           => $validated['napomena'] ?? null,
-            'is_active'          => true,
+            'datum_isteka' => $validated['datum_isteka'] ?? null,
+            'napomena' => $validated['napomena'] ?? null,
+            'is_active' => true,
         ];
 
         // Composite PK allows a type only once, so reactivate it if already held.

@@ -1,9 +1,9 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState } from 'react';
 
 const destinations = [
     { name: 'Pariz, Francuska', code: 'Pariz', price: 'od 12.500 RSD', color: 'bg-[#E6F1FB] text-[#185FA5]' },

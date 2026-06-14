@@ -20,7 +20,6 @@ class SupportTicketController extends Controller
 {
     private const RATING_EDIT_WINDOW_HOURS = 72;
 
-
     public function index(Request $request): Response
     {
         $tickets = $request->user()
@@ -48,13 +47,10 @@ class SupportTicketController extends Controller
     {
         $validated = $request->validated();
 
-        $seq = DB::selectOne("SELECT nextval('support_ticket_number_seq') AS val")->val;
-
         $ticket = new SupportTicket;
         $ticket->description = $validated['description'];
         $ticket->category_id = $validated['category_id'];
         $ticket->priority = $validated['priority'] ?? 'medium';
-        $ticket->number = 'ST-'.str_pad($seq, 4, '0', STR_PAD_LEFT);
         $ticket->status = 'open';
         $request->user()->supportTickets()->save($ticket);
 

@@ -45,7 +45,10 @@ const planeStatusMeta: Record<Plane['status'], { label: string; className: strin
 };
 
 function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) {
+return '—';
+}
+
     return new Date(iso).toLocaleDateString('sr-RS', {
         day: '2-digit',
         month: '2-digit',
@@ -62,8 +65,13 @@ export default function ServisiPlane() {
     const { plane, services, flash } = props;
 
     useEffect(() => {
-        if (flash?.success) toast.success(flash.success);
-        if (flash?.error) toast.error(flash.error);
+        if (flash?.success) {
+toast.success(flash.success);
+}
+
+        if (flash?.error) {
+toast.error(flash.error);
+}
     }, [flash?.success, flash?.error]);
 
     const finished = services.filter((s) => s.status === 'finished');

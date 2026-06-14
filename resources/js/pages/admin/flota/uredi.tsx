@@ -1,7 +1,8 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { PlaneFormData, PlaneFormFields, PlaneStatus } from './plane-form-fields';
+import type { PlaneFormData, PlaneStatus } from './plane-form-fields';
+import { PlaneFormFields } from './plane-form-fields';
 
 type Plane = {
     id: number;

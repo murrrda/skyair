@@ -31,22 +31,22 @@ class EmployeeProfileController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'first_name'   => ['required', 'string', 'max:255'],
-            'last_name'    => ['required', 'string', 'max:255'],
-            'email'        => ['required', 'email', 'unique:users,email,' . $user->id],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'unique:users,email,'.$user->id],
             'phone_number' => ['nullable', 'string', 'max:30'],
-            'address'      => ['nullable', 'string', 'max:500'],
-            'country'      => ['nullable', 'string', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
+            'country' => ['nullable', 'string', 'max:255'],
         ]);
 
         $user->update([
             'first_name' => $validated['first_name'],
-            'last_name'  => $validated['last_name'],
-            'name'       => $validated['first_name'] . ' ' . $validated['last_name'],
-            'email'      => $validated['email'],
+            'last_name' => $validated['last_name'],
+            'name' => $validated['first_name'].' '.$validated['last_name'],
+            'email' => $validated['email'],
             'phone_number' => $validated['phone_number'] ?? null,
-            'address'    => $validated['address'] ?? null,
-            'country'    => $validated['country'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'country' => $validated['country'] ?? null,
         ]);
 
         return back()->with('success', 'Podaci su uspešno ažurirani.');

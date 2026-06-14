@@ -1,7 +1,8 @@
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
-import { FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
-import { AirportOption, RouteFormData, RouteFormFields } from './route-form-fields';
+import type { AirportOption, RouteFormData} from './route-form-fields';
+import { RouteFormFields } from './route-form-fields';
 
 type RouteResource = {
     id: number;

@@ -11,29 +11,32 @@ class LoginController extends Controller
 {
     public function adminLogin(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             return back()->withErrors(['email' => 'Pogrešni kredencijali.']);
         }
 
-        if (!Gate::forUser(Auth::user())->allows('is-admin')) {
+        if (! Gate::forUser(Auth::user())->allows('is-admin')) {
             Auth::logout();
+
             return back()->withErrors(['email' => 'Nemate admin pristup.']);
         }
 
         $request->session()->regenerate();
+
         return redirect('/admin');
     }
 
     public function employeeLogin(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             return back()->withErrors(['email' => 'Pogrešni kredencijali.']);
         }
 
         $user = Auth::user();
 
-        if (!$user->isZaposlen()) {
+        if (! $user->isZaposlen()) {
             Auth::logout();
+
             return back()->withErrors(['email' => 'Ovaj nalog nije registrovan kao zaposleni.']);
         }
 
@@ -52,16 +55,18 @@ class LoginController extends Controller
 
     public function kupacLogin(Request $request)
     {
-        if (!Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
+        if (! Auth::attempt($request->only('email', 'password'), $request->boolean('remember'))) {
             return back()->withErrors(['email' => 'Pogrešni kredencijali.']);
         }
 
         if (Auth::user()->isZaposlen()) {
             Auth::logout();
+
             return back()->withErrors(['email' => 'Ovaj nalog nije registrovan kao kupac.']);
         }
 
         $request->session()->regenerate();
+
         return redirect('/kupac/pretraga-letova');
     }
 }
