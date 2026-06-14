@@ -6,9 +6,11 @@ use App\Events\NewSupportTicketCreated;
 use App\Http\Requests\StoreSupportTicketRatingRequest;
 use App\Http\Requests\StoreSupportTicketRequest;
 use App\Models\Category;
+use App\Models\ExtractionLog;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketRating;
 use App\Models\SupportTicketRatingAgent;
+use App\Services\TicketFieldExtractor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -43,16 +45,48 @@ class SupportTicketController extends Controller
         ]);
     }
 
-    public function store(StoreSupportTicketRequest $request): RedirectResponse
+    public function store(StoreSupportTicketRequest $request, TicketFieldExtractor $extractor): RedirectResponse
     {
         $validated = $request->validated();
 
+        $category = Category::with('fields')->findOrFail($validated['category_id']);
+
         $ticket = new SupportTicket;
         $ticket->description = $validated['description'];
-        $ticket->category_id = $validated['category_id'];
+        $ticket->category_id = $category->id;
         $ticket->priority = $validated['priority'] ?? 'medium';
         $ticket->status = 'open';
         $request->user()->supportTickets()->save($ticket);
+
+        if ($category->fields->isNotEmpty()) {
+            $extraction = $extractor->extract($category, $validated['description']);
+
+            foreach ($extraction['fields'] as $fieldName => $data) {
+                if ($data['value'] === null) {
+                    continue;
+                }
+
+                $field = $category->fields->firstWhere('field_name', $fieldName);
+                if ($field) {
+                    $ticket->fieldValues()->create([
+                        'category_field_id' => $field->id,
+                        'value' => $data['value'],
+                        'confidence' => $data['confidence'],
+                        'source' => 'nlp',
+                    ]);
+                }
+            }
+
+            ExtractionLog::create([
+                'support_ticket_id' => $ticket->id,
+                'category_id' => $category->id,
+                'description' => $validated['description'],
+                'extracted_fields' => $extraction['fields'],
+                'raw_response' => $extraction['raw_response'],
+                'model_used' => config('services.gemini.model'),
+                'confidence_threshold' => config('services.gemini.confidence_threshold'),
+            ]);
+        }
 
         $ticket->load('category', 'user');
         NewSupportTicketCreated::dispatch($ticket);
