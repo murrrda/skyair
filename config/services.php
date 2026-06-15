@@ -35,10 +35,19 @@ return [
         ],
     ],
 
+    'nlp' => [
+        'driver' => env('NLP_DRIVER', 'ollama'),
+        'confidence_threshold' => (float) env('NLP_CONFIDENCE_THRESHOLD', 0.6),
+    ],
+
     'gemini' => [
         'api_key' => env('GEMINI_API_KEY'),
         'model' => env('GEMINI_MODEL', 'gemini-2.0-flash'),
-        'confidence_threshold' => (float) env('GEMINI_CONFIDENCE_THRESHOLD', 0.6),
+    ],
+
+    'ollama' => [
+        'host' => env('OLLAMA_HOST', 'http://localhost:11434'),
+        'model' => env('OLLAMA_MODEL', 'gemma3:4b'),
     ],
 
 ];

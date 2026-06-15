@@ -94,6 +94,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
         Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
         Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
+        Route::patch('/support-tickets/{ticket}/retry', [SupportTicketController::class, 'retryExtraction'])->name('support-tickets.retry');
         Route::post('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'rate'])->name('support-tickets.rate');
         Route::patch('/support-tickets/{ticket}/rate', [SupportTicketController::class, 'updateRating'])->name('support-tickets.rate.update');
         Route::get('/kupac/loyalty', [LoyaltyController::class, 'index'])->name('kupac.loyalty');

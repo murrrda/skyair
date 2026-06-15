@@ -10,17 +10,22 @@ use Illuminate\Support\Facades\Log;
 
 class TicketFieldExtractor
 {
-    private string $apiKey;
-
-    private string $model;
+    private string $driver;
 
     private float $confidenceThreshold;
 
     public function __construct()
     {
-        $this->apiKey = config('services.gemini.api_key');
-        $this->model = config('services.gemini.model');
-        $this->confidenceThreshold = config('services.gemini.confidence_threshold');
+        $this->driver = config('services.nlp.driver');
+        $this->confidenceThreshold = config('services.nlp.confidence_threshold');
+    }
+
+    public function modelUsed(): string
+    {
+        return match ($this->driver) {
+            'ollama' => config('services.ollama.model'),
+            default => config('services.gemini.model'),
+        };
     }
 
     /**
@@ -36,7 +41,10 @@ class TicketFieldExtractor
 
         $prompt = $this->buildPrompt($category->fields, $description);
 
-        $parsed = $this->callGemini($prompt);
+        $parsed = match ($this->driver) {
+            'ollama' => $this->callOllama($prompt),
+            default => $this->callGemini($prompt),
+        };
 
         $results = [];
         foreach ($category->fields as $field) {
@@ -105,14 +113,64 @@ PROMPT;
     /**
      * @return array<string, array{value: ?string, confidence: float}>
      */
+    private function callOllama(string $prompt): array
+    {
+        $host = config('services.ollama.host');
+        $model = config('services.ollama.model');
+
+        try {
+            $response = Http::timeout(60)
+                ->post("{$host}/api/chat", [
+                    'model' => $model,
+                    'messages' => [
+                        ['role' => 'user', 'content' => $prompt],
+                    ],
+                    'format' => 'json',
+                    'stream' => false,
+                    'options' => [
+                        'temperature' => 0.1,
+                    ],
+                ]);
+
+            if ($response->failed()) {
+                Log::error('Ollama API error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
+                return [];
+            }
+
+            $text = $response->json('message.content', '');
+            $decoded = json_decode($text, true);
+
+            if (! is_array($decoded)) {
+                Log::warning('Ollama returned invalid JSON', ['text' => $text]);
+
+                return [];
+            }
+
+            return $decoded;
+        } catch (ConnectionException $e) {
+            Log::error('Ollama connection failed', ['message' => $e->getMessage()]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return array<string, array{value: ?string, confidence: float}>
+     */
     private function callGemini(string $prompt): array
     {
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$this->model}:generateContent";
+        $apiKey = config('services.gemini.api_key');
+        $model = config('services.gemini.model');
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/{$model}:generateContent";
 
         try {
             $response = Http::timeout(30)
                 ->retry(3, 1000, throw: false)
-                ->withQueryParameters(['key' => $this->apiKey])
+                ->withQueryParameters(['key' => $apiKey])
                 ->post($url, [
                     'contents' => [
                         ['parts' => [['text' => $prompt]]],

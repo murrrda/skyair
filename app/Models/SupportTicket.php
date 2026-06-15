@@ -13,6 +13,7 @@ class SupportTicket extends Model
     use HasHumanReadableNumber;
 
     public const STATUS_LABELS = [
+        'draft' => 'Nacrt',
         'open' => 'Otvoren',
         'in_progress' => 'U rešavanju',
         'requires_info' => 'Zahteva informacije',
