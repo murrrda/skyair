@@ -12,7 +12,7 @@ class CleanupDraftTickets implements ShouldQueue
 
     public function handle(): void
     {
-        SupportTicket::where('status', 'draft')
+        SupportTicket::whereIn('status', ['draft', 'abandoned'])
             ->where('created_at', '<', now()->subHours(24))
             ->delete();
     }

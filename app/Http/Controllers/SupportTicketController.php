@@ -27,7 +27,7 @@ class SupportTicketController extends Controller
     {
         $tickets = $request->user()
             ->supportTickets()
-            ->where('status', '!=', 'draft')
+            ->whereNotIn('status', ['draft', 'abandoned'])
             ->with([
                 'category:id,name',
                 'workLogs.employee.user:id,first_name,last_name,name',
@@ -63,6 +63,8 @@ class SupportTicketController extends Controller
         $ticket->status = 'draft';
         $request->user()->supportTickets()->save($ticket);
 
+        $extraction = null;
+
         if ($category->fields->isNotEmpty()) {
             $extraction = $extractor->extract($category, $validated['description']);
 
@@ -79,19 +81,9 @@ class SupportTicketController extends Controller
                     'source' => 'nlp',
                 ]);
             }
-
-            ExtractionLog::create([
-                'support_ticket_id' => $ticket->id,
-                'category_id' => $category->id,
-                'description' => $validated['description'],
-                'extracted_fields' => $extraction['fields'],
-                'raw_response' => $extraction['raw_response'],
-                'model_used' => $extractor->modelUsed(),
-                'confidence_threshold' => config('services.nlp.confidence_threshold'),
-            ]);
         }
 
-        return $this->tryPromote($ticket, $validator);
+        return $this->tryPromote($ticket, $extractor, $validator, $category, $extraction);
     }
 
     public function retryExtraction(
@@ -102,6 +94,14 @@ class SupportTicketController extends Controller
     ): RedirectResponse {
         if ($ticket->user_id !== $request->user()->id || $ticket->status !== 'draft') {
             abort(403);
+        }
+
+        $attempts = $ticket->extractionLogs()->count();
+
+        if ($attempts >= SupportTicket::MAX_CLARIFICATION_ATTEMPTS) {
+            $ticket->update(['status' => 'abandoned']);
+
+            return back()->with('ticket_abandoned', true);
         }
 
         $validated = $request->validate([
@@ -130,23 +130,18 @@ class SupportTicketController extends Controller
                     'source' => 'nlp',
                 ]);
             }
-
-            ExtractionLog::create([
-                'support_ticket_id' => $ticket->id,
-                'category_id' => $category->id,
-                'description' => $validated['description'],
-                'extracted_fields' => $extraction['fields'],
-                'raw_response' => $extraction['raw_response'],
-                'model_used' => $extractor->modelUsed(),
-                'confidence_threshold' => config('services.nlp.confidence_threshold'),
-            ]);
         }
 
-        return $this->tryPromote($ticket, $validator);
+        return $this->tryPromote($ticket, $extractor, $validator, $category, $extraction ?? null);
     }
 
-    private function tryPromote(SupportTicket $ticket, TicketFieldValidator $validator): RedirectResponse
-    {
+    private function tryPromote(
+        SupportTicket $ticket,
+        TicketFieldExtractor $extractor,
+        TicketFieldValidator $validator,
+        ?Category $category = null,
+        ?array $extraction = null,
+    ): RedirectResponse {
         $ticket->load('category.fields');
 
         if ($ticket->category->fields->isEmpty()) {
@@ -158,6 +153,20 @@ class SupportTicketController extends Controller
         }
 
         $validation = $validator->validate($ticket);
+        $attempt = $ticket->extractionLogs()->count() + 1;
+
+        if ($extraction) {
+            ExtractionLog::create([
+                'support_ticket_id' => $ticket->id,
+                'category_id' => ($category ?? $ticket->category)->id,
+                'description' => $ticket->description,
+                'extracted_fields' => $extraction['fields'],
+                'raw_response' => $extraction['raw_response'],
+                'model_used' => $extractor->modelUsed(),
+                'confidence_threshold' => config('services.nlp.confidence_threshold'),
+                'validation_results' => $validation['results'],
+            ]);
+        }
 
         if ($validation['all_valid']) {
             $ticket->update(['status' => 'open']);
@@ -167,9 +176,17 @@ class SupportTicketController extends Controller
             return back()->with('ticket_created', true);
         }
 
+        if ($attempt >= SupportTicket::MAX_CLARIFICATION_ATTEMPTS) {
+            $ticket->update(['status' => 'abandoned']);
+
+            return back()->with('ticket_abandoned', true);
+        }
+
         return back()->with('draft_validation', [
             'ticket_id' => $ticket->id,
             'results' => $validation['results'],
+            'attempt' => $attempt,
+            'max_attempts' => SupportTicket::MAX_CLARIFICATION_ATTEMPTS,
         ]);
     }
 
