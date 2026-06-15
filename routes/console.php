@@ -16,3 +16,10 @@ Schedule::command('email-queue:flush')
 Schedule::command('reservations:cancel-expired')
     ->hourly()
     ->withoutOverlapping();
+
+// Dynamic ticket prices are refreshed once a day, but the command itself only
+// touches flights whose price is older than pricing.recompute_interval_days,
+// so a given flight's price changes at most every few days.
+Schedule::command('flights:recompute-prices')
+    ->daily()
+    ->withoutOverlapping();

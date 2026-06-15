@@ -10,6 +10,7 @@ use App\Models\Putnik;
 use App\Models\Reservation;
 use App\Models\ReservationState;
 use App\Models\TicketClass;
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 class ReservationController extends Controller
 {
+    public function __construct(private readonly PricingService $pricing) {}
+
     public function index(Request $request): Response
     {
         $reservations = Reservation::with(['tickets.flight.route.startingAirport', 'tickets.flight.route.landingAirport', 'latestState'])
@@ -77,11 +80,9 @@ class ReservationController extends Controller
 
         $ticketClass = TicketClass::find($ticketClassId);
         $className = $ticketClass?->name ?? $this->fallbackClassName($ticketClassId);
-        $multiplier = $ticketClass?->multiplier ?? $this->fallbackMultiplier($ticketClassId);
 
-        $basePrice = $this->estimateBasePrice($flight);
-        $classExtra = (int) round($basePrice * ($multiplier - 1));
-        $total = (int) round($basePrice * $multiplier);
+        $breakdown = $this->pricing->breakdown($flight, $ticketClass);
+        $breakdown['class_factor_label'] = $className;
 
         $dep = $flight->route?->startingAirport;
         $arr = $flight->route?->landingAirport;
@@ -97,17 +98,7 @@ class ReservationController extends Controller
             ],
             'ticket_class_name' => $className,
             'ticket_class_id' => $ticketClassId,
-            'price_breakdown' => [
-                'base_price' => $basePrice,
-                'class_factor_label' => $className,
-                'class_factor_amount' => $classExtra,
-                'season_amount' => 0,
-                'occupancy_amount' => 0,
-                'reward_discount' => 0,
-                'total' => $total,
-                'status_points' => (int) round($total * $multiplier * 0.25),
-                'reward_points' => (int) round($total * $multiplier),
-            ],
+            'price_breakdown' => $breakdown,
             'user_reward_points' => $this->getUserRewardPoints($request->user()->id),
         ]);
     }
@@ -122,12 +113,11 @@ class ReservationController extends Controller
             'reward_points_used' => 'sometimes|integer|min:0',
         ]);
 
-        $flight = Flight::with(['route', 'plane', 'tickets'])->findOrFail($request->flight_id);
+        $flight = Flight::with(['route.landingAirport', 'plane', 'tickets'])->findOrFail($request->flight_id);
         $ticketClass = TicketClass::find($request->ticket_class_id);
-        $multiplier = $ticketClass?->multiplier ?? $this->fallbackMultiplier($request->ticket_class_id);
 
-        $basePrice = $this->estimateBasePrice($flight);
-        $fullPrice = round($basePrice * $multiplier, 2);
+        $basePrice = $this->pricing->currentPrice($flight);
+        $fullPrice = $this->pricing->priceForClass($flight, $ticketClass);
 
         $rewardUsed = min(
             (int) $request->input('reward_points_used', 0),
@@ -319,13 +309,21 @@ class ReservationController extends Controller
 
         $ticketClass = $ticket ? TicketClass::find($ticket->ticket_class_id) : null;
         $className = $ticketClass?->name ?? ($ticket ? $this->fallbackClassName($ticket->ticket_class_id) : '—');
-        $multiplier = $ticketClass?->multiplier ?? ($ticket ? $this->fallbackMultiplier($ticket->ticket_class_id) : 1.0);
 
-        $basePrice = $flight ? $this->estimateBasePrice($flight) : (int) $reservation->total_price;
-        $classExtra = (int) round($basePrice * ($multiplier - 1));
         $total = (int) $reservation->total_price;
         $statusPoints = (int) round($total * 0.03);
         $rewardPoints = (int) round($total * 0.01);
+
+        $breakdown = $flight
+            ? $this->pricing->breakdown($flight, $ticketClass)
+            : ['base_price' => $total, 'class_factor_amount' => 0, 'season_amount' => 0, 'occupancy_amount' => 0];
+        $breakdown = array_merge($breakdown, [
+            'class_factor_label' => $className,
+            'reward_discount' => 0,
+            'total' => $total,
+            'status_points' => $statusPoints,
+            'reward_points' => $rewardPoints,
+        ]);
 
         $mins = $flight?->expected_takeoff && $flight?->expected_arrival
             ? $flight->expected_takeoff->diffInMinutes($flight->expected_arrival)
@@ -396,17 +394,7 @@ class ReservationController extends Controller
                     'type' => 'Direktan let',
                     'plane_model' => $flight?->plane?->model ?? '—',
                 ],
-                'price_breakdown' => [
-                    'base_price' => $basePrice,
-                    'class_factor_label' => $className,
-                    'class_factor_amount' => $classExtra,
-                    'season_amount' => 0,
-                    'occupancy_amount' => 0,
-                    'reward_discount' => 0,
-                    'total' => $total,
-                    'status_points' => $statusPoints,
-                    'reward_points' => $rewardPoints,
-                ],
+                'price_breakdown' => $breakdown,
                 'timeline' => $timeline,
             ],
         ]);
@@ -423,12 +411,10 @@ class ReservationController extends Controller
         $ticket->update($request->only(['passenger_first_name', 'passenger_last_name', 'ticket_class_id']));
 
         if ($request->filled('ticket_class_id') && $request->ticket_class_id != $ticket->getOriginal('ticket_class_id')) {
-            $flight = Flight::with('route')->find($ticket->flight_id);
+            $flight = Flight::with(['route.landingAirport', 'plane', 'tickets'])->find($ticket->flight_id);
             $ticketClass = TicketClass::find($request->ticket_class_id);
-            $multiplier = $ticketClass?->multiplier ?? $this->fallbackMultiplier($request->ticket_class_id);
-            $basePrice = $this->estimateBasePrice($flight);
             $ticket->update([
-                'final_price' => round($basePrice * $multiplier, 2),
+                'final_price' => $this->pricing->priceForClass($flight, $ticketClass),
             ]);
 
             $reservation = $ticket->reservation;
@@ -466,13 +452,6 @@ class ReservationController extends Controller
         $m = $minutes % 60;
 
         return "{$h}h {$m}m";
-    }
-
-    private function estimateBasePrice(Flight $f): float
-    {
-        $distance = $f->route?->distance_km ?? 1000;
-
-        return max(5000, $distance * 10);
     }
 
     private function fallbackClassName(int $id): string
