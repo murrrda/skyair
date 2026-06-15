@@ -18,6 +18,9 @@ class Flight extends Model
         'status',
         'longitude',
         'latitude',
+        'base_price',
+        'current_price',
+        'price_updated_at',
     ];
 
     protected $casts = [
@@ -25,6 +28,9 @@ class Flight extends Model
         'expected_arrival' => 'datetime',
         'longitude' => 'decimal:6',
         'latitude' => 'decimal:6',
+        'base_price' => 'decimal:2',
+        'current_price' => 'decimal:2',
+        'price_updated_at' => 'datetime',
     ];
 
     public static function numberPrefix(): string

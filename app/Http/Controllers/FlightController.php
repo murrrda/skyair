@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Flight;
 use App\Models\TicketClass;
+use App\Services\PricingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -11,6 +12,8 @@ use Inertia\Response;
 
 class FlightController extends Controller
 {
+    public function __construct(private readonly PricingService $pricing) {}
+
     public function index(Request $request): Response
     {
         $query = Flight::with(['route.startingAirport', 'route.landingAirport', 'plane', 'tickets'])
@@ -56,9 +59,7 @@ class FlightController extends Controller
         $flight->load(['route.startingAirport', 'route.landingAirport', 'route.layovers', 'plane', 'tickets']);
 
         $ticketClasses = TicketClass::all()->map(function (TicketClass $tc) use ($flight) {
-            $basePrice = $this->estimateBasePrice($flight);
-            $multiplier = $this->classMultiplier($tc);
-            $price = (int) round($basePrice * $multiplier);
+            $price = (int) round($this->pricing->priceForClass($flight, $tc));
 
             return [
                 'id' => $tc->id,
@@ -66,7 +67,7 @@ class FlightController extends Controller
                 'price' => $price,
                 'status_points' => (int) round($price * 0.03),
                 'features' => $this->classFeatures($tc),
-                'featured' => $multiplier === 1.5,
+                'featured' => $this->pricing->classMultiplier($tc) === 1.5,
             ];
         });
 
@@ -80,7 +81,7 @@ class FlightController extends Controller
             ? $flight->expected_takeoff->diffInMinutes($flight->expected_arrival)
             : 0;
         $layoverCount = $flight->route?->layovers?->count() ?? 0;
-        $occupancy = $this->occupancyPct($flight);
+        $occupancy = $this->pricing->occupancyPct($flight);
 
         return Inertia::render('kupac/detalji-leta', [
             'flight' => [
@@ -98,10 +99,10 @@ class FlightController extends Controller
             ],
             'ticket_classes' => $ticketClasses,
             'pricing_info' => [
-                'base_price' => $this->estimateBasePrice($flight),
-                'season_factor' => $this->seasonLabel(),
+                'base_price' => (int) round($this->pricing->basePrice($flight)),
+                'season_factor' => $this->pricing->seasonLabel($flight),
                 'occupancy_pct' => $occupancy,
-                'occupancy_factor' => $this->occupancyLabel($occupancy),
+                'occupancy_factor' => $this->pricing->occupancyLabel($flight),
                 'tier_discount' => 'Bez popusta',
             ],
         ]);
@@ -115,8 +116,8 @@ class FlightController extends Controller
             ? $f->expected_takeoff->diffInMinutes($f->expected_arrival)
             : 0;
         $layoverCount = $f->route?->layovers_count ?? 0;
-        $basePrice = $this->estimateBasePrice($f);
-        $occupancy = $this->occupancyPct($f);
+        $currentPrice = $this->pricing->currentPrice($f);
+        $occupancy = $this->pricing->occupancyPct($f);
 
         return [
             'id' => $f->id,
@@ -128,26 +129,11 @@ class FlightController extends Controller
             'arr_city' => $arr?->city ?? '—',
             'duration' => $this->formatDuration($mins),
             'type' => $layoverCount > 0 ? "{$layoverCount} presedanje" : 'Direktan',
-            'economy_price' => (int) round($basePrice),
-            'business_price' => (int) round($basePrice * 1.5),
-            'first_price' => (int) round($basePrice * 2.0),
+            'economy_price' => (int) round($currentPrice),
+            'business_price' => (int) round($currentPrice * 1.5),
+            'first_price' => (int) round($currentPrice * 2.0),
             'occupancy_pct' => $occupancy,
         ];
-    }
-
-    private function estimateBasePrice(Flight $f): float
-    {
-        $distance = $f->route?->distance_km ?? 1000;
-
-        return max(5000, $distance * 10);
-    }
-
-    private function occupancyPct(Flight $f): int
-    {
-        $capacity = $f->plane?->capacity ?? 180;
-        $sold = $f->tickets->count();
-
-        return $capacity > 0 ? (int) round(($sold / $capacity) * 100) : 0;
     }
 
     private function formatDuration(int $minutes): string
@@ -156,44 +142,6 @@ class FlightController extends Controller
         $m = $minutes % 60;
 
         return "{$h}h {$m}m";
-    }
-
-    private function seasonLabel(): string
-    {
-        $month = now()->month;
-
-        return match (true) {
-            $month >= 6 && $month <= 8 => 'Sezona letovanja +18%',
-            $month >= 12 || $month <= 2 => 'Zimska sezona +12%',
-            $month >= 3 && $month <= 5 => 'Prolećna sezona +5%',
-            default => 'Jesenja sezona +3%',
-        };
-    }
-
-    private function occupancyLabel(int $pct): string
-    {
-        return match (true) {
-            $pct >= 90 => '+30% (skoro puno)',
-            $pct >= 70 => '+15% (visoka potražnja)',
-            $pct >= 40 => '(normalna)',
-            default => '−10% (niska potražnja)',
-        };
-    }
-
-    private function classMultiplier(TicketClass $tc): float
-    {
-        $name = strtolower($tc->name ?? '');
-
-        return match (true) {
-            str_contains($name, 'biznis') => 1.5,
-            str_contains($name, 'prva') => 2.0,
-            str_contains($name, 'ekonom') => 1.0,
-            default => match ($tc->id % 3) {
-                1 => 1.0,
-                2 => 1.5,
-                0 => 2.0,
-            },
-        };
     }
 
     private function fallbackClassName(int $id): string
@@ -207,7 +155,7 @@ class FlightController extends Controller
 
     private function classFeatures(TicketClass $tc): array
     {
-        $multiplier = $this->classMultiplier($tc);
+        $multiplier = $this->pricing->classMultiplier($tc);
 
         return match (true) {
             $multiplier >= 2.0 => ['Neograničen prtljag', 'Lie-flat sedište', 'À la carte meni', 'Privatni transfer'],
@@ -218,7 +166,7 @@ class FlightController extends Controller
 
     private function defaultTicketClasses(Flight $f): Collection
     {
-        $base = $this->estimateBasePrice($f);
+        $base = $this->pricing->currentPrice($f);
 
         return collect([
             [

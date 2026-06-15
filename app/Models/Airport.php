@@ -11,5 +11,6 @@ class Airport extends Model
         'name',
         'city',
         'country',
+        'season_type',
     ];
 }

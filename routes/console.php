@@ -21,3 +21,7 @@ Schedule::command('reservations:cancel-expired')
 Schedule::job(new CleanupDraftTickets)
     ->hourly()
     ->withoutOverlapping();
+
+Schedule::command('flights:recompute-prices')
+    ->daily()
+    ->withoutOverlapping();
