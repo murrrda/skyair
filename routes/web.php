@@ -92,6 +92,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
         Route::patch('/kupac/karta/{ticket}', [ReservationController::class, 'updateTicket'])->name('kupac.karta.update');
         Route::delete('/kupac/karta/{ticket}', [ReservationController::class, 'destroyTicket'])->name('kupac.karta.destroy');
+        Route::get('/kupac/otkazivanje-rezervacije/{reservation}', [ReservationController::class, 'cancelForm'])->name('kupac.otkazivanje');
+        Route::post('/kupac/otkazivanje-rezervacije/{reservation}', [ReservationController::class, 'cancel'])->name('kupac.otkazivanje.store');
         Route::get('/support-tickets', [SupportTicketController::class, 'index'])->name('support-tickets.index');
         Route::post('/support-tickets', [SupportTicketController::class, 'store'])->name('support-tickets.store');
         Route::patch('/support-tickets/{ticket}/retry', [SupportTicketController::class, 'retryExtraction'])->name('support-tickets.retry');

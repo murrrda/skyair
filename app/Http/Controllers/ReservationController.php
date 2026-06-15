@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cancellation;
 use App\Models\Flight;
 use App\Models\FlightTicket;
 use App\Models\LoyaltyPoint;
@@ -19,6 +20,8 @@ use Inertia\Response;
 
 class ReservationController extends Controller
 {
+    private const CANCEL_CUTOFF_DAYS = 3;
+
     public function __construct(private readonly PricingService $pricing) {}
 
     public function index(Request $request): Response
@@ -64,7 +67,7 @@ class ReservationController extends Controller
                     'total_price' => (int) $r->total_price,
                     'is_past' => $isPast,
                     'can_pay' => $status === 'kreirana',
-                    'can_cancel' => in_array($status, ['kreirana', 'placena']) && ! $isPast,
+                    'can_cancel' => in_array($status, ['kreirana', 'placena']) && $this->withinCancelWindow($flight),
                 ];
             });
 
@@ -367,7 +370,7 @@ class ReservationController extends Controller
             ];
         }
 
-        $canCancel = in_array($status, ['kreirana', 'placena']) && ! $isPast;
+        $canCancel = in_array($status, ['kreirana', 'placena']) && $this->withinCancelWindow($flight);
         $cancelDeadline = $flight?->expected_takeoff?->subDays(3)?->translatedFormat('d. M Y. H:i');
 
         return Inertia::render('kupac/detalji-rezervacije', [
@@ -398,6 +401,144 @@ class ReservationController extends Controller
                 'timeline' => $timeline,
             ],
         ]);
+    }
+
+    public function cancelForm(Request $request, Reservation $reservation)
+    {
+        abort_unless($reservation->user_id === $request->user()->id, 403);
+
+        $reservation->load([
+            'tickets.flight.route.startingAirport',
+            'tickets.flight.route.landingAirport',
+            'tickets.flight.plane',
+            'latestState',
+            'payment',
+        ]);
+        $ticket = $reservation->tickets->first();
+        $flight = $ticket?->flight;
+
+        if (! $this->withinCancelWindow($flight) || ! in_array($reservation->latestState?->status, ['pending', 'confirmed'], true)) {
+            return redirect()->route('kupac.detalji-rezervacije', $reservation)
+                ->with('error', 'Otkazivanje nije moguće — do poletanja je manje od '.self::CANCEL_CUTOFF_DAYS.' dana.');
+        }
+
+        $dep = $flight?->route?->startingAirport;
+        $arr = $flight?->route?->landingAirport;
+        $ticketClass = $ticket ? TicketClass::find($ticket->ticket_class_id) : null;
+        $className = $ticketClass?->name ?? ($ticket ? $this->fallbackClassName($ticket->ticket_class_id) : '—');
+
+        $rewardUsed = (int) LoyaltyPoint::where('reservation_id', $reservation->id)
+            ->where('type', 'reward')
+            ->where('action', 'spent')
+            ->sum('amount');
+
+        $total = (int) $reservation->total_price;
+        $mins = $flight?->expected_takeoff && $flight?->expected_arrival
+            ? $flight->expected_takeoff->diffInMinutes($flight->expected_arrival)
+            : 0;
+
+        $status = match ($reservation->latestState?->status) {
+            'confirmed' => 'placena',
+            'cancelled' => 'otkazana',
+            'completed' => 'iskoriscena',
+            default => 'kreirana',
+        };
+
+        return Inertia::render('kupac/otkazivanje-rezervacije', [
+            'reservation' => [
+                'id' => $reservation->id,
+                'code' => $reservation->code,
+                'status' => $status,
+                'date_formatted' => $flight?->expected_takeoff?->translatedFormat('d. M Y.'),
+                'class_name' => $className,
+                'seat_number' => $ticket?->seat_number ? (string) $ticket->seat_number : null,
+                'total_price' => $total,
+                'reward_points_used' => $rewardUsed,
+                'cancel_deadline' => $flight?->expected_takeoff?->subDays(self::CANCEL_CUTOFF_DAYS)?->translatedFormat('d. M Y. H:i') ?? '—',
+                'cancellation_fee' => 0,
+                'refund_amount' => $total,
+                'payment_method_label' => $reservation->payment?->method ?? 'kartica',
+                'flight' => [
+                    'dep_time' => $flight?->expected_takeoff?->format('H:i') ?? '—',
+                    'arr_time' => $flight?->expected_arrival?->format('H:i') ?? '—',
+                    'dep_code' => $dep?->iata_code ?? '—',
+                    'dep_city' => $dep?->city ?? '—',
+                    'arr_code' => $arr?->iata_code ?? '—',
+                    'arr_city' => $arr?->city ?? '—',
+                    'duration' => $this->formatDuration($mins),
+                    'type' => 'Direktan let',
+                    'plane_model' => $flight?->plane?->model ?? '—',
+                ],
+            ],
+        ]);
+    }
+
+    public function cancel(Request $request, Reservation $reservation)
+    {
+        abort_unless($reservation->user_id === $request->user()->id, 403);
+
+        $request->validate([
+            'reason' => 'required|string|max:255',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        $reservation->load(['tickets.flight', 'latestState']);
+        $flight = $reservation->tickets->first()?->flight;
+
+        if (! $this->withinCancelWindow($flight)) {
+            return redirect()->route('kupac.detalji-rezervacije', $reservation)
+                ->with('error', 'Otkazivanje nije moguće — do poletanja je manje od '.self::CANCEL_CUTOFF_DAYS.' dana.');
+        }
+
+        if (! in_array($reservation->latestState?->status, ['pending', 'confirmed'], true)) {
+            return redirect()->route('kupac.detalji-rezervacije', $reservation)
+                ->with('error', 'Rezervacija se ne može otkazati iz trenutnog statusa.');
+        }
+
+        DB::transaction(function () use ($request, $reservation) {
+            $rewardUsed = (int) LoyaltyPoint::where('reservation_id', $reservation->id)
+                ->where('type', 'reward')
+                ->where('action', 'spent')
+                ->sum('amount');
+
+            if ($rewardUsed > 0) {
+                $putnik = Putnik::find($reservation->user_id);
+                $putnik?->increment('reward_points', $rewardUsed);
+
+                LoyaltyPoint::create([
+                    'user_id' => $reservation->user_id,
+                    'reservation_id' => $reservation->id,
+                    'type' => 'reward',
+                    'action' => 'earned',
+                    'amount' => $rewardUsed,
+                    'description' => 'Povrat poena — otkazana rezervacija '.$reservation->code,
+                ]);
+            }
+
+            $cancellation = Cancellation::create([
+                'reason' => $request->input('reason'),
+                'note' => $request->input('note'),
+                'cancellation_fee' => 0,
+                'refund_amount' => (float) $reservation->total_price,
+                'reward_points_refunded' => $rewardUsed,
+            ]);
+
+            // Release the seats back to sale.
+            $reservation->tickets()->delete();
+
+            $state = ReservationState::create([
+                'reservation_id' => $reservation->id,
+                'status' => 'cancelled',
+            ]);
+
+            $reservation->update([
+                'latest_state_id' => $state->id,
+                'cancellation_id' => $cancellation->id,
+            ]);
+        });
+
+        return redirect()->route('kupac.moji-letovi')
+            ->with('success', 'Rezervacija '.$reservation->code.' je otkazana.');
     }
 
     public function updateTicket(Request $request, FlightTicket $ticket)
@@ -444,6 +585,13 @@ class ReservationController extends Controller
         $reservation->update(['total_price' => $reservation->tickets()->sum('final_price')]);
 
         return redirect()->route('kupac.detalji-rezervacije', $reservation);
+    }
+
+    private function withinCancelWindow(?Flight $flight): bool
+    {
+        // Cancellation is allowed only while the flight is more than N days away.
+        return $flight?->expected_takeoff !== null
+            && $flight->expected_takeoff->gt(now()->addDays(self::CANCEL_CUTOFF_DAYS));
     }
 
     private function formatDuration(int $minutes): string
