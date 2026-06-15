@@ -12,8 +12,11 @@ class SupportTicket extends Model
 {
     use HasHumanReadableNumber;
 
+    public const MAX_CLARIFICATION_ATTEMPTS = 15;
+
     public const STATUS_LABELS = [
         'draft' => 'Nacrt',
+        'abandoned' => 'Napušten',
         'open' => 'Otvoren',
         'in_progress' => 'U rešavanju',
         'requires_info' => 'Zahteva informacije',

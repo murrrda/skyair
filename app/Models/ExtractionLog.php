@@ -15,12 +15,14 @@ class ExtractionLog extends Model
         'raw_response',
         'model_used',
         'confidence_threshold',
+        'validation_results',
     ];
 
     protected function casts(): array
     {
         return [
             'extracted_fields' => 'array',
+            'validation_results' => 'array',
             'confidence_threshold' => 'float',
         ];
     }

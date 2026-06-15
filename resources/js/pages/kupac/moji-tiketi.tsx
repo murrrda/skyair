@@ -93,13 +93,20 @@ type FieldValidationResult = {
 type DraftValidation = {
     ticket_id: number;
     results: Record<string, FieldValidationResult>;
+    attempt: number;
+    max_attempts: number;
 };
 
 type PageProps = {
     tickets: Ticket[];
     categories: Category[];
     auth: { user: { id?: number | null; first_name?: string; last_name?: string } | null };
-    flash?: { success?: string; ticket_created?: boolean; draft_validation?: DraftValidation };
+    flash?: {
+        success?: string;
+        ticket_created?: boolean;
+        ticket_abandoned?: boolean;
+        draft_validation?: DraftValidation;
+    };
 };
 
 const statusMeta: Record<TicketStatus, { label: string; className: string }> = {
@@ -620,7 +627,7 @@ function Timeline({ ticket }: { ticket: Ticket }) {
     );
 }
 
-type DialogStep = 'form' | 'validation' | 'success';
+type DialogStep = 'form' | 'validation' | 'success' | 'abandoned';
 
 function CreateTicketDialog({
     open,
@@ -634,6 +641,9 @@ function CreateTicketDialog({
     const [step, setStep] = useState<DialogStep>('form');
     const [draftId, setDraftId] = useState<number | null>(null);
     const [validationResults, setValidationResults] = useState<Record<string, FieldValidationResult>>({});
+    const [attempt, setAttempt] = useState(0);
+    const [maxAttempts, setMaxAttempts] = useState(15);
+    const [analyzing, setAnalyzing] = useState(false);
 
     const { data, setData, post, processing, errors, reset } = useForm<{
         category_id: string;
@@ -650,6 +660,8 @@ function CreateTicketDialog({
         setStep('form');
         setDraftId(null);
         setValidationResults({});
+        setAttempt(0);
+        setMaxAttempts(15);
         onOpenChange(false);
     };
 
@@ -658,15 +670,20 @@ function CreateTicketDialog({
 
         if (flash?.ticket_created) {
             setStep('success');
+        } else if (flash?.ticket_abandoned) {
+            setStep('abandoned');
         } else if (flash?.draft_validation) {
             setDraftId(flash.draft_validation.ticket_id);
             setValidationResults(flash.draft_validation.results);
+            setAttempt(flash.draft_validation.attempt);
+            setMaxAttempts(flash.draft_validation.max_attempts);
             setStep('validation');
         }
     };
 
     const submitForm = (e: React.FormEvent) => {
         e.preventDefault();
+        setAnalyzing(true);
 
         if (draftId) {
             router.patch(
@@ -675,12 +692,14 @@ function CreateTicketDialog({
                 {
                     preserveScroll: true,
                     onSuccess: handleResponse,
+                    onFinish: () => setAnalyzing(false),
                 },
             );
         } else {
             post('/support-tickets', {
                 preserveScroll: true,
                 onSuccess: handleResponse,
+                onFinish: () => setAnalyzing(false),
             });
         }
     };
@@ -693,6 +712,10 @@ function CreateTicketDialog({
         <Dialog
             open={open}
             onOpenChange={(v) => {
+                if (analyzing) {
+return;
+}
+
                 if (!v) {
 closeDialog();
 } else {
@@ -700,7 +723,31 @@ onOpenChange(v);
 }
             }}
         >
-            <DialogContent className="sm:max-w-[560px]">
+            <DialogContent
+                className="sm:max-w-[560px]"
+                onInteractOutside={(e) => {
+ if (analyzing) {
+e.preventDefault();
+} 
+}}
+                onEscapeKeyDown={(e) => {
+ if (analyzing) {
+e.preventDefault();
+} 
+}}
+            >
+                {analyzing && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg bg-background/80 backdrop-blur-sm">
+                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#1a56db] border-t-transparent dark:border-[#7eb1f5] dark:border-t-transparent" />
+                        <p className="mt-3 text-sm font-medium text-foreground">
+                            NLP analiza u toku...
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            Molimo sačekajte dok sistem obradi vaš opis.
+                        </p>
+                    </div>
+                )}
+
                 {step === 'form' && (
                     <>
                         <DialogHeader>
@@ -800,7 +847,21 @@ onOpenChange(v);
                                     : 'Svi podaci su ispravni.'}
                             </DialogDescription>
                         </DialogHeader>
-                        <div className="max-h-[380px] space-y-3 overflow-y-auto pr-1">
+
+                        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2">
+                            <span className="text-[12px] text-muted-foreground">
+                                Pokušaj <span className="font-semibold text-foreground">{attempt}</span> od{' '}
+                                <span className="font-semibold text-foreground">{maxAttempts}</span>
+                            </span>
+                            <div className="h-1.5 w-24 overflow-hidden rounded-full bg-border">
+                                <div
+                                    className="h-full rounded-full bg-[#1a56db] transition-all dark:bg-[#7eb1f5]"
+                                    style={{ width: `${(attempt / maxAttempts) * 100}%` }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="max-h-[340px] space-y-3 overflow-y-auto pr-1">
                             {Object.entries(validationResults).map(
                                 ([fieldName, result]) => (
                                     <ValidationFieldRow
@@ -847,6 +908,56 @@ onOpenChange(v);
                             <p className="mt-2 text-sm text-muted-foreground">
                                 Možete pratiti status tiketa na ovoj stranici.
                             </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
+                                onClick={closeDialog}
+                            >
+                                Zatvori
+                            </Button>
+                        </DialogFooter>
+                    </>
+                )}
+
+                {step === 'abandoned' && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Automatska obrada nije uspela</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-6 text-center">
+                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#fef2f2] dark:bg-[#dc2626]/20">
+                                <span className="text-2xl text-[#dc2626] dark:text-[#fca5a5]">
+                                    &#10007;
+                                </span>
+                            </div>
+                            <p className="text-[15px] font-medium text-foreground">
+                                Nismo uspeli automatski obraditi vaš zahtev.
+                            </p>
+                            <p className="mt-3 text-sm text-muted-foreground">
+                                Kontaktirajte podršku i naši agenti će ručno kreirati tiket za vas:
+                            </p>
+                            <div className="mt-4 space-y-2 text-sm">
+                                <p className="font-medium text-foreground">
+                                    Email:{' '}
+                                    <a
+                                        href="mailto:support@skyair.com"
+                                        className="text-[#1a56db] underline dark:text-[#7eb1f5]"
+                                    >
+                                        support@skyair.com
+                                    </a>
+                                </p>
+                                <p className="font-medium text-foreground">
+                                    Telefon:{' '}
+                                    <a
+                                        href="tel:+38111234567"
+                                        className="text-[#1a56db] underline dark:text-[#7eb1f5]"
+                                    >
+                                        +381 11 234 567
+                                    </a>
+                                </p>
+                            </div>
                         </div>
                         <DialogFooter>
                             <Button

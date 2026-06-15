@@ -61,6 +61,7 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'newEmployeeCredentials' => fn () => $request->session()->get('newEmployeeCredentials'),
                 'ticket_created' => fn () => $request->session()->get('ticket_created'),
+                'ticket_abandoned' => fn () => $request->session()->get('ticket_abandoned'),
                 'draft_validation' => fn () => $request->session()->get('draft_validation'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
