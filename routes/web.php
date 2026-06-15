@@ -105,6 +105,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['can:is-agent'])->prefix('zaposleni/podrska')->name('zaposleni.podrska.')->group(function () {
         Route::get('/', [EmployeeSupportController::class, 'index'])->name('index');
+        Route::get('/recenzije', [EmployeeSupportController::class, 'reviews'])->name('reviews');
         Route::post('/{ticket}/take', [EmployeeSupportController::class, 'takeOver'])->name('take');
         Route::post('/{ticket}/request-info', [EmployeeSupportController::class, 'requestInfo'])->name('requestInfo');
         Route::post('/{ticket}/transfer', [EmployeeSupportController::class, 'transfer'])->name('transfer');

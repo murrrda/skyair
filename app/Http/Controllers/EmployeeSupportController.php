@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SupportTicket;
+use App\Models\SupportTicketRatingAgent;
 use App\Models\SupportTicketWorkLog;
 use App\Models\Zaposlen;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -192,6 +193,66 @@ class EmployeeSupportController extends Controller
         });
 
         return back()->with('success', 'Tiket zatvoren.');
+    }
+
+    public function reviews(Request $request): Response
+    {
+        $employeeId = $this->ensureEmployee($request);
+
+        $agentRatings = SupportTicketRatingAgent::where('employee_id', $employeeId)
+            ->with([
+                'ticketRating.ticket' => fn ($q) => $q->select('id', 'number', 'category_id', 'user_id', 'status', 'closed_at')
+                    ->with(['category:id,name', 'user:id,first_name,last_name,name']),
+            ])
+            ->latest('created_at')
+            ->get();
+
+        $reviews = $agentRatings
+            ->filter(fn ($ar) => $ar->ticketRating && $ar->ticketRating->ticket)
+            ->map(function (SupportTicketRatingAgent $ar) {
+                $tr = $ar->ticketRating;
+                $ticket = $tr->ticket;
+                $customer = $ticket->user;
+                $full = $customer ? trim(($customer->first_name ?? '').' '.($customer->last_name ?? '')) : '';
+                $customerName = $full !== '' ? $full : ($customer?->name ?? 'Korisnik');
+
+                return [
+                    'id' => $ar->id,
+                    'ticket_number' => $ticket->number,
+                    'category' => $ticket->category?->name,
+                    'customer_name' => $customerName,
+                    'closed_at' => $ticket->closed_at?->toIso8601String(),
+                    'agent_rating' => $ar->rating,
+                    'agent_comment' => $ar->comment,
+                    'resolution_speed' => $tr->resolution_speed,
+                    'resolution_speed_comment' => $tr->resolution_speed_comment,
+                    'communication_quality' => $tr->communication_quality,
+                    'communication_quality_comment' => $tr->communication_quality_comment,
+                    'degree_of_resolution' => $tr->degree_of_resolution,
+                    'degree_of_resolution_comment' => $tr->degree_of_resolution_comment,
+                    'rated_at' => $tr->created_at?->toIso8601String(),
+                ];
+            })
+            ->values();
+
+        $totalReviews = $reviews->count();
+        $averageRating = $totalReviews > 0
+            ? round($reviews->avg('agent_rating'), 1)
+            : null;
+
+        $ratingDistribution = [];
+        for ($i = 5; $i >= 1; $i--) {
+            $ratingDistribution[$i] = $reviews->where('agent_rating', $i)->count();
+        }
+
+        return Inertia::render('zaposleni/recenzije', [
+            'reviews' => $reviews,
+            'stats' => [
+                'total_reviews' => $totalReviews,
+                'average_rating' => $averageRating,
+                'distribution' => $ratingDistribution,
+            ],
+        ]);
     }
 
     private function currentOwnerId(SupportTicket $ticket): ?int

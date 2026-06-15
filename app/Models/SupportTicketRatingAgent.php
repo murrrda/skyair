@@ -20,7 +20,7 @@ class SupportTicketRatingAgent extends Model
         'rating' => 'integer',
     ];
 
-    public function rating(): BelongsTo
+    public function ticketRating(): BelongsTo
     {
         return $this->belongsTo(SupportTicketRating::class, 'support_ticket_rating_id');
     }

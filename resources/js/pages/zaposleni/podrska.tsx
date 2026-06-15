@@ -277,7 +277,15 @@ return;
                         </div>
                         <span className="text-[15px] font-semibold tracking-tight">SkyAir</span>
                     </Link>
-                    <span className="text-[13px] font-medium text-muted-foreground">Panel zaposlenog</span>
+                    <div className="flex items-center gap-4">
+                        <span className="text-[13px] font-semibold text-foreground">Kanban tabla</span>
+                        <Link
+                            href="/zaposleni/podrska/recenzije"
+                            className="text-[13px] font-medium text-muted-foreground transition hover:text-foreground"
+                        >
+                            Moje recenzije
+                        </Link>
+                    </div>
                     <div className="ml-auto flex items-center gap-3">
                         {auth.user && <NotificationBell />}
                         {auth.user && (
