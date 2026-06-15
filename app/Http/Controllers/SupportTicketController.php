@@ -10,6 +10,7 @@ use App\Models\ExtractionLog;
 use App\Models\SupportTicket;
 use App\Models\SupportTicketRating;
 use App\Models\SupportTicketRatingAgent;
+use App\Services\TicketAutoAssigner;
 use App\Services\TicketFieldExtractor;
 use App\Services\TicketFieldValidator;
 use Illuminate\Http\RedirectResponse;
@@ -148,6 +149,7 @@ class SupportTicketController extends Controller
             $ticket->update(['status' => 'open']);
             $ticket->load('category', 'user');
             NewSupportTicketCreated::dispatch($ticket);
+            app(TicketAutoAssigner::class)->assign($ticket);
 
             return back()->with('ticket_created', true);
         }
@@ -172,6 +174,7 @@ class SupportTicketController extends Controller
             $ticket->update(['status' => 'open']);
             $ticket->load('category', 'user');
             NewSupportTicketCreated::dispatch($ticket);
+            app(TicketAutoAssigner::class)->assign($ticket);
 
             return back()->with('ticket_created', true);
         }

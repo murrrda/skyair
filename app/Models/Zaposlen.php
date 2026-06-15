@@ -59,4 +59,9 @@ class Zaposlen extends Model
     {
         return $this->hasMany(SupportTicketWorkLog::class, 'employee_id', 'user_id');
     }
+
+    public function shifts(): HasMany
+    {
+        return $this->hasMany(EmployeeShift::class, 'employee_id', 'user_id');
+    }
 }
