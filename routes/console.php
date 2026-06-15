@@ -25,3 +25,7 @@ Schedule::job(new CleanupDraftTickets)
 Schedule::command('flights:recompute-prices')
     ->daily()
     ->withoutOverlapping();
+
+Schedule::command('loyalty:expire-points')
+    ->daily()
+    ->withoutOverlapping();

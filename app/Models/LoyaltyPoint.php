@@ -15,10 +15,12 @@ class LoyaltyPoint extends Model
         'amount',
         'description',
         'expires_at',
+        'expired_at',
     ];
 
     protected $casts = [
         'expires_at' => 'date',
+        'expired_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
