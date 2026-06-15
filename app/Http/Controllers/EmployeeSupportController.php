@@ -22,6 +22,7 @@ class EmployeeSupportController extends Controller
         $this->ensureEmployee($request);
 
         $tickets = SupportTicket::query()
+            ->where('status', '!=', 'draft')
             ->with([
                 'user:id,first_name,last_name',
                 'category:id,name',

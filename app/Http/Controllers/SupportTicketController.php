@@ -11,6 +11,7 @@ use App\Models\SupportTicket;
 use App\Models\SupportTicketRating;
 use App\Models\SupportTicketRatingAgent;
 use App\Services\TicketFieldExtractor;
+use App\Services\TicketFieldValidator;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,6 +27,7 @@ class SupportTicketController extends Controller
     {
         $tickets = $request->user()
             ->supportTickets()
+            ->where('status', '!=', 'draft')
             ->with([
                 'category:id,name',
                 'workLogs.employee.user:id,first_name,last_name,name',
@@ -45,8 +47,11 @@ class SupportTicketController extends Controller
         ]);
     }
 
-    public function store(StoreSupportTicketRequest $request, TicketFieldExtractor $extractor): RedirectResponse
-    {
+    public function store(
+        StoreSupportTicketRequest $request,
+        TicketFieldExtractor $extractor,
+        TicketFieldValidator $validator,
+    ): RedirectResponse {
         $validated = $request->validated();
 
         $category = Category::with('fields')->findOrFail($validated['category_id']);
@@ -55,26 +60,24 @@ class SupportTicketController extends Controller
         $ticket->description = $validated['description'];
         $ticket->category_id = $category->id;
         $ticket->priority = $validated['priority'] ?? 'medium';
-        $ticket->status = 'open';
+        $ticket->status = 'draft';
         $request->user()->supportTickets()->save($ticket);
 
         if ($category->fields->isNotEmpty()) {
             $extraction = $extractor->extract($category, $validated['description']);
 
             foreach ($extraction['fields'] as $fieldName => $data) {
-                if ($data['value'] === null) {
+                $field = $category->fields->firstWhere('field_name', $fieldName);
+                if (! $field || $data['value'] === null) {
                     continue;
                 }
 
-                $field = $category->fields->firstWhere('field_name', $fieldName);
-                if ($field) {
-                    $ticket->fieldValues()->create([
-                        'category_field_id' => $field->id,
-                        'value' => $data['value'],
-                        'confidence' => $data['confidence'],
-                        'source' => 'nlp',
-                    ]);
-                }
+                $ticket->fieldValues()->create([
+                    'category_field_id' => $field->id,
+                    'value' => $data['value'],
+                    'confidence' => $data['confidence'],
+                    'source' => 'nlp',
+                ]);
             }
 
             ExtractionLog::create([
@@ -83,15 +86,91 @@ class SupportTicketController extends Controller
                 'description' => $validated['description'],
                 'extracted_fields' => $extraction['fields'],
                 'raw_response' => $extraction['raw_response'],
-                'model_used' => config('services.gemini.model'),
-                'confidence_threshold' => config('services.gemini.confidence_threshold'),
+                'model_used' => $extractor->modelUsed(),
+                'confidence_threshold' => config('services.nlp.confidence_threshold'),
             ]);
         }
 
-        $ticket->load('category', 'user');
-        NewSupportTicketCreated::dispatch($ticket);
+        return $this->tryPromote($ticket, $validator);
+    }
 
-        return back()->with('success', 'Tiket uspešno prijavljen.');
+    public function retryExtraction(
+        Request $request,
+        SupportTicket $ticket,
+        TicketFieldExtractor $extractor,
+        TicketFieldValidator $validator,
+    ): RedirectResponse {
+        if ($ticket->user_id !== $request->user()->id || $ticket->status !== 'draft') {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'description' => 'required|string|max:5000',
+        ]);
+
+        $ticket->update(['description' => $validated['description']]);
+
+        $category = Category::with('fields')->findOrFail($ticket->category_id);
+
+        $ticket->fieldValues()->delete();
+
+        if ($category->fields->isNotEmpty()) {
+            $extraction = $extractor->extract($category, $validated['description']);
+
+            foreach ($extraction['fields'] as $fieldName => $data) {
+                $field = $category->fields->firstWhere('field_name', $fieldName);
+                if (! $field || $data['value'] === null) {
+                    continue;
+                }
+
+                $ticket->fieldValues()->create([
+                    'category_field_id' => $field->id,
+                    'value' => $data['value'],
+                    'confidence' => $data['confidence'],
+                    'source' => 'nlp',
+                ]);
+            }
+
+            ExtractionLog::create([
+                'support_ticket_id' => $ticket->id,
+                'category_id' => $category->id,
+                'description' => $validated['description'],
+                'extracted_fields' => $extraction['fields'],
+                'raw_response' => $extraction['raw_response'],
+                'model_used' => $extractor->modelUsed(),
+                'confidence_threshold' => config('services.nlp.confidence_threshold'),
+            ]);
+        }
+
+        return $this->tryPromote($ticket, $validator);
+    }
+
+    private function tryPromote(SupportTicket $ticket, TicketFieldValidator $validator): RedirectResponse
+    {
+        $ticket->load('category.fields');
+
+        if ($ticket->category->fields->isEmpty()) {
+            $ticket->update(['status' => 'open']);
+            $ticket->load('category', 'user');
+            NewSupportTicketCreated::dispatch($ticket);
+
+            return back()->with('ticket_created', true);
+        }
+
+        $validation = $validator->validate($ticket);
+
+        if ($validation['all_valid']) {
+            $ticket->update(['status' => 'open']);
+            $ticket->load('category', 'user');
+            NewSupportTicketCreated::dispatch($ticket);
+
+            return back()->with('ticket_created', true);
+        }
+
+        return back()->with('draft_validation', [
+            'ticket_id' => $ticket->id,
+            'results' => $validation['results'],
+        ]);
     }
 
     public function rate(StoreSupportTicketRatingRequest $request, SupportTicket $ticket): RedirectResponse

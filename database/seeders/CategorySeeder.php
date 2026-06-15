@@ -14,11 +14,12 @@ class CategorySeeder extends Seeder
             'Izgubljen prtljag' => [
                 [
                     'field_name' => 'baggage_number',
-                    'field_type' => 'text',
+                    'field_type' => 'reference',
                     'required' => true,
                     'display_label' => 'Broj prtljaga',
-                    'prompt' => 'Molimo unesite broj prtljaga sa prtljažne oznake (npr. BA123456).',
-                    'validation_rule' => '/^[A-Z]{2}\d{6}$/i',
+                    'prompt' => 'Molimo unesite broj prtljaga sa prtljažne oznake (npr. BG-00001).',
+                    'reference_table' => 'baggages',
+                    'reference_column' => 'id',
                 ],
                 [
                     'field_name' => 'flight_number',
@@ -48,11 +49,12 @@ class CategorySeeder extends Seeder
             'Oštećen prtljag' => [
                 [
                     'field_name' => 'baggage_number',
-                    'field_type' => 'text',
+                    'field_type' => 'reference',
                     'required' => true,
                     'display_label' => 'Broj prtljaga',
-                    'prompt' => 'Molimo unesite broj prtljaga sa prtljažne oznake (npr. BA123456).',
-                    'validation_rule' => '/^[A-Z]{2}\d{6}$/i',
+                    'prompt' => 'Molimo unesite broj prtljaga sa prtljažne oznake (npr. BG-00001).',
+                    'reference_table' => 'baggages',
+                    'reference_column' => 'id',
                 ],
                 [
                     'field_name' => 'flight_number',

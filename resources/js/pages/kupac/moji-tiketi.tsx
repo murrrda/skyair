@@ -80,11 +80,26 @@ type Ticket = {
 
 type Category = { id: number; name: string };
 
+type FieldValidationResult = {
+    status: 'valid' | 'invalid' | 'missing';
+    reason: string | null;
+    display_label: string;
+    prompt: string;
+    required: boolean;
+    value: string | null;
+    field_type: string;
+};
+
+type DraftValidation = {
+    ticket_id: number;
+    results: Record<string, FieldValidationResult>;
+};
+
 type PageProps = {
     tickets: Ticket[];
     categories: Category[];
     auth: { user: { id?: number | null; first_name?: string; last_name?: string } | null };
-    flash?: { success?: string };
+    flash?: { success?: string; ticket_created?: boolean; draft_validation?: DraftValidation };
 };
 
 const statusMeta: Record<TicketStatus, { label: string; className: string }> = {
@@ -354,10 +369,6 @@ export default function MojiTiketi() {
                         <DetailPanel ticket={selected} />
                     </div>
 
-                    <div className="rounded-xl border border-dashed border-[#1a56db]/30 bg-[#1a56db]/5 px-5 py-4 text-sm text-muted-foreground dark:border-[#7eb1f5]/30 dark:bg-[#7eb1f5]/5">
-                        <span className="font-semibold text-[#1a56db] dark:text-[#7eb1f5]">U izradi:</span>{' '}
-                        NLP validacija prijave.
-                    </div>
                 </div>
             </div>
 
@@ -609,6 +620,8 @@ function Timeline({ ticket }: { ticket: Ticket }) {
     );
 }
 
+type DialogStep = 'form' | 'validation' | 'success';
+
 function CreateTicketDialog({
     open,
     onOpenChange,
@@ -618,6 +631,10 @@ function CreateTicketDialog({
     onOpenChange: (v: boolean) => void;
     categories: Category[];
 }) {
+    const [step, setStep] = useState<DialogStep>('form');
+    const [draftId, setDraftId] = useState<number | null>(null);
+    const [validationResults, setValidationResults] = useState<Record<string, FieldValidationResult>>({});
+
     const { data, setData, post, processing, errors, reset } = useForm<{
         category_id: string;
         description: string;
@@ -628,110 +645,270 @@ function CreateTicketDialog({
         priority: 'medium',
     });
 
-    const submit = (e: React.FormEvent) => {
-        e.preventDefault();
-        post('/support-tickets', {
-            preserveScroll: true,
-            onSuccess: () => {
-                reset();
-                onOpenChange(false);
-            },
-        });
+    const closeDialog = () => {
+        reset();
+        setStep('form');
+        setDraftId(null);
+        setValidationResults({});
+        onOpenChange(false);
     };
+
+    const handleResponse = (page: { props: Record<string, unknown> }) => {
+        const flash = page.props.flash as PageProps['flash'];
+
+        if (flash?.ticket_created) {
+            setStep('success');
+        } else if (flash?.draft_validation) {
+            setDraftId(flash.draft_validation.ticket_id);
+            setValidationResults(flash.draft_validation.results);
+            setStep('validation');
+        }
+    };
+
+    const submitForm = (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (draftId) {
+            router.patch(
+                `/support-tickets/${draftId}/retry`,
+                { description: data.description },
+                {
+                    preserveScroll: true,
+                    onSuccess: handleResponse,
+                },
+            );
+        } else {
+            post('/support-tickets', {
+                preserveScroll: true,
+                onSuccess: handleResponse,
+            });
+        }
+    };
+
+    const hasIssues = Object.values(validationResults).some(
+        (r) => r.required && r.status !== 'valid',
+    );
 
     return (
         <Dialog
             open={open}
             onOpenChange={(v) => {
                 if (!v) {
-reset();
+closeDialog();
+} else {
+onOpenChange(v);
 }
-
-                onOpenChange(v);
             }}
         >
-            <DialogContent className="sm:max-w-[520px]">
-                <DialogHeader>
-                    <DialogTitle>Prijavi problem</DialogTitle>
-                    <DialogDescription>Popunite kategoriju i opišite vaš problem</DialogDescription>
-                </DialogHeader>
-                <form onSubmit={submit} className="space-y-4">
-                    <div className="space-y-1.5">
-                        <Label>
-                            Kategorija problema <span className="text-[#dc2626]">*</span>
-                        </Label>
-                        <Select
-                            value={data.category_id}
-                            onValueChange={(v) => setData('category_id', v)}
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Izaberite kategoriju…" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {categories.map((c) => (
-                                    <SelectItem key={c.id} value={String(c.id)}>
-                                        {c.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <InputError message={errors.category_id} />
-                    </div>
+            <DialogContent className="sm:max-w-[560px]">
+                {step === 'form' && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Prijavi problem</DialogTitle>
+                            <DialogDescription>
+                                Popunite kategoriju i opišite vaš problem
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={submitForm} className="space-y-4">
+                            <div className="space-y-1.5">
+                                <Label>
+                                    Kategorija problema{' '}
+                                    <span className="text-[#dc2626]">*</span>
+                                </Label>
+                                <Select
+                                    value={data.category_id}
+                                    onValueChange={(v) => setData('category_id', v)}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue placeholder="Izaberite kategoriju…" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {categories.map((c) => (
+                                            <SelectItem key={c.id} value={String(c.id)}>
+                                                {c.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.category_id} />
+                            </div>
 
-                    <div className="space-y-1.5">
-                        <Label>Prioritet</Label>
-                        <Select
-                            value={data.priority}
-                            onValueChange={(v) => setData('priority', v as TicketPriority)}
-                        >
-                            <SelectTrigger className="w-full">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="low">Nizak</SelectItem>
-                                <SelectItem value="medium">Srednji</SelectItem>
-                                <SelectItem value="high">Visok</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <InputError message={errors.priority} />
-                    </div>
+                            <div className="space-y-1.5">
+                                <Label>Prioritet</Label>
+                                <Select
+                                    value={data.priority}
+                                    onValueChange={(v) =>
+                                        setData('priority', v as TicketPriority)
+                                    }
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="low">Nizak</SelectItem>
+                                        <SelectItem value="medium">Srednji</SelectItem>
+                                        <SelectItem value="high">Visok</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <InputError message={errors.priority} />
+                            </div>
 
-                    <div className="space-y-1.5">
-                        <Label>
-                            Opis problema <span className="text-[#dc2626]">*</span>
-                        </Label>
-                        <textarea
-                            value={data.description}
-                            onChange={(e) => setData('description', e.target.value)}
-                            placeholder="Opišite vaš problem što detaljnije — broj leta, broj prtljaga, datum putovanja…"
-                            className="min-h-[130px] w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#1a56db] focus:outline-none dark:focus:border-[#7eb1f5]"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                            <span className="font-medium text-[#1a56db] dark:text-[#7eb1f5]">U izradi:</span>{' '}
-                            NLP će automatski izvući obavezna polja iz opisa.
-                        </p>
-                        <InputError message={errors.description} />
-                    </div>
+                            <div className="space-y-1.5">
+                                <Label>
+                                    Opis problema{' '}
+                                    <span className="text-[#dc2626]">*</span>
+                                </Label>
+                                <textarea
+                                    value={data.description}
+                                    onChange={(e) => setData('description', e.target.value)}
+                                    placeholder="Opišite vaš problem što detaljnije — broj leta, broj prtljaga, datum putovanja…"
+                                    className="min-h-[130px] w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm leading-relaxed text-foreground placeholder:text-muted-foreground focus:border-[#1a56db] focus:outline-none dark:focus:border-[#7eb1f5]"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Sistem će automatski izvući relevantna polja iz vašeg opisa.
+                                </p>
+                                <InputError message={errors.description} />
+                            </div>
 
-                    <DialogFooter>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => onOpenChange(false)}
-                        >
-                            Otkaži
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={processing}
-                            className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
-                        >
-                            Pošalji prijavu
-                        </Button>
-                    </DialogFooter>
-                </form>
+                            <DialogFooter>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={closeDialog}
+                                >
+                                    Otkaži
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={processing}
+                                    className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
+                                >
+                                    {processing ? 'Obrada…' : 'Pošalji prijavu'}
+                                </Button>
+                            </DialogFooter>
+                        </form>
+                    </>
+                )}
+
+                {step === 'validation' && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Provera podataka</DialogTitle>
+                            <DialogDescription>
+                                {hasIssues
+                                    ? 'Neki podaci nedostaju ili nisu ispravni. Izmenite opis i pokušajte ponovo.'
+                                    : 'Svi podaci su ispravni.'}
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="max-h-[380px] space-y-3 overflow-y-auto pr-1">
+                            {Object.entries(validationResults).map(
+                                ([fieldName, result]) => (
+                                    <ValidationFieldRow
+                                        key={fieldName}
+                                        result={result}
+                                    />
+                                ),
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={closeDialog}
+                            >
+                                Otkaži
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={() => setStep('form')}
+                                className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
+                            >
+                                Izmeni opis
+                            </Button>
+                        </DialogFooter>
+                    </>
+                )}
+
+                {step === 'success' && (
+                    <>
+                        <DialogHeader>
+                            <DialogTitle>Prijava uspešna</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-6 text-center">
+                            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-[#ecfdf5] dark:bg-[#059669]/20">
+                                <span className="text-2xl text-[#059669] dark:text-[#6ee7b7]">
+                                    &#10003;
+                                </span>
+                            </div>
+                            <p className="text-[15px] font-medium text-foreground">
+                                Vaš problem je uspešno prijavljen i počinjemo sa radom na njemu.
+                            </p>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                Možete pratiti status tiketa na ovoj stranici.
+                            </p>
+                        </div>
+                        <DialogFooter>
+                            <Button
+                                type="button"
+                                className="bg-[#1a56db] text-white hover:bg-[#1648b8]"
+                                onClick={closeDialog}
+                            >
+                                Zatvori
+                            </Button>
+                        </DialogFooter>
+                    </>
+                )}
             </DialogContent>
         </Dialog>
+    );
+}
+
+function ValidationFieldRow({ result }: { result: FieldValidationResult }) {
+    const statusStyles: Record<string, { border: string; bg: string; icon: string; text: string }> = {
+        valid: {
+            border: 'border-[#059669]/30 dark:border-[#6ee7b7]/30',
+            bg: 'bg-[#ecfdf5] dark:bg-[#059669]/10',
+            icon: '&#10003;',
+            text: 'text-[#059669] dark:text-[#6ee7b7]',
+        },
+        invalid: {
+            border: 'border-[#dc2626]/30 dark:border-[#fca5a5]/30',
+            bg: 'bg-[#fef2f2] dark:bg-[#dc2626]/10',
+            icon: '&#10007;',
+            text: 'text-[#dc2626] dark:text-[#fca5a5]',
+        },
+        missing: {
+            border: 'border-[#d97706]/30 dark:border-[#fbbf24]/30',
+            bg: 'bg-[#fffbeb] dark:bg-[#d97706]/10',
+            icon: '?',
+            text: 'text-[#d97706] dark:text-[#fbbf24]',
+        },
+    };
+
+    const style = statusStyles[result.status] ?? statusStyles.missing;
+
+    return (
+        <div className={`rounded-lg border ${style.border} ${style.bg} p-3`}>
+            <div className="flex items-center gap-2">
+                <span
+                    className={`text-sm font-bold ${style.text}`}
+                    dangerouslySetInnerHTML={{ __html: style.icon }}
+                />
+                <span className="text-[13px] font-semibold text-foreground">
+                    {result.display_label}
+                    {result.required && <span className="ml-1 text-[#dc2626]">*</span>}
+                </span>
+            </div>
+            {result.reason && (
+                <p className={`mt-1 text-[12px] ${style.text}`}>{result.reason}</p>
+            )}
+            {result.value && (
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                    Vrednost: <span className="font-medium text-foreground">{result.value}</span>
+                </p>
+            )}
+        </div>
     );
 }
 

@@ -31,7 +31,7 @@ class SupportTicketObserver
             'changed_by_user_id' => Auth::id(),
             'field' => '__created__',
             'old_value' => null,
-            'new_value' => 'open',
+            'new_value' => $ticket->status,
         ]);
     }
 
@@ -68,7 +68,7 @@ class SupportTicketObserver
             }
         });
 
-        if (! $statusChanged) {
+        if (! $statusChanged || $statusFrom === 'draft') {
             return;
         }
 

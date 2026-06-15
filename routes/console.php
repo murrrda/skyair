@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\CleanupDraftTickets;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -14,5 +15,9 @@ Schedule::command('email-queue:flush')
     ->runInBackground();
 
 Schedule::command('reservations:cancel-expired')
+    ->hourly()
+    ->withoutOverlapping();
+
+Schedule::job(new CleanupDraftTickets)
     ->hourly()
     ->withoutOverlapping();
