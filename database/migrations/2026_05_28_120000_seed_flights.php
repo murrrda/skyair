@@ -48,6 +48,15 @@ return new class extends Migration
             ->whereIn('iata_code', $airportCodes)
             ->pluck('id', 'iata_code');
 
+        // Fresh databases (e.g. the test database) have no airports seeded yet.
+        // This is a data-seed migration, so skip it instead of failing on a
+        // missing airport.
+        foreach ($airportCodes as $code) {
+            if (! isset($airports[$code])) {
+                return;
+            }
+        }
+
         $legs = [
             ['BEG', 'CDG', 'Beograd → Pariz', 1450, 145],
             ['BEG', 'FRA', 'Beograd → Frankfurt', 1090, 120],
