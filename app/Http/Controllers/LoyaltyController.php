@@ -39,12 +39,29 @@ class LoyaltyController extends Controller
             ->where('action', 'expired')
             ->sum('amount');
 
+        // Reward points earned but not yet spent/expired, whose validity
+        // window ends within the next 30 days.
+        $expiringSoonWindow = now()->addDays(30);
+        $expiringRows = LoyaltyPoint::where('user_id', $userId)
+            ->where('type', 'reward')
+            ->where('action', 'earned')
+            ->whereNotNull('expires_at')
+            ->where('expires_at', '>', now())
+            ->where('expires_at', '<=', $expiringSoonWindow)
+            ->orderBy('expires_at')
+            ->get(['amount', 'expires_at']);
+
+        $expiringSoonAmount = (int) $expiringRows->sum('amount');
+        $earliestExpiry = $expiringRows->first()?->expires_at?->translatedFormat('d.m.Y.');
+
         return Inertia::render('kupac/loyalty', [
             'summary' => [
                 'status_points' => $putnik->status_points,
                 'reward_points' => $putnik->reward_points,
                 'reward_spent' => (int) $rewardSpent,
                 'expired' => (int) $expired,
+                'expiring_soon_amount' => $expiringSoonAmount,
+                'expiring_soon_date' => $earliestExpiry,
                 'tier' => $currentTier,
                 'next_tier' => $nextTier,
                 'points_to_next' => $pointsToNext,

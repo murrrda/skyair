@@ -110,7 +110,7 @@ test('customer can cancel more than 3 days before departure', function () {
         ->assertRedirect(route('kupac.moji-letovi'));
 
     expect($reservation->fresh()->latestState->status)->toBe('cancelled')
-        ->and($reservation->tickets()->count())->toBe(0) // seats released
+        ->and($reservation->tickets()->count())->toBe(1) // soft-cancel: tickets remain for history
         ->and(Cancellation::where('reason', 'promena_planova')->exists())->toBeTrue();
 });
 

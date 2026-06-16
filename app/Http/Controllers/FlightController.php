@@ -123,6 +123,8 @@ class FlightController extends Controller
             'id' => $f->id,
             'dep_time' => $f->expected_takeoff?->format('H:i'),
             'arr_time' => $f->expected_arrival?->format('H:i'),
+            'dep_date' => $f->expected_takeoff?->translatedFormat('d. M Y.'),
+            'arr_date' => $f->expected_arrival?->translatedFormat('d. M Y.'),
             'dep_code' => $dep?->iata_code ?? '—',
             'dep_city' => $dep?->city ?? '—',
             'arr_code' => $arr?->iata_code ?? '—',
