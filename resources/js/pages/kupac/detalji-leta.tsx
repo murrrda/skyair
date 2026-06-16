@@ -30,6 +30,8 @@ interface PricingInfo {
     season_factor: string;
     occupancy_pct: number;
     occupancy_factor: string;
+    sold: number;
+    capacity: number;
     tier_discount: string;
 }
 
@@ -134,7 +136,7 @@ export default function DetaljiLeta({ flight, ticket_classes = [], pricing_info 
                             <div className="rounded-lg bg-[#FAEEDA] p-3.5">
                                 <div className="text-xs font-semibold text-[#854F0B]">Cena prilagođena u realnom vremenu</div>
                                 <div className="mt-1 text-[11px] leading-relaxed text-[#854F0B]">
-                                    Osnovna cena {formatPrice(pricing_info.base_price)} &middot; {pricing_info.season_factor} &middot; Popunjenost {pricing_info.occupancy_pct}% {pricing_info.occupancy_factor} &middot; {pricing_info.tier_discount}
+                                    Osnovna cena {formatPrice(pricing_info.base_price)} &middot; {pricing_info.season_factor} &middot; Popunjenost {pricing_info.occupancy_pct}% ({pricing_info.sold}/{pricing_info.capacity} sedišta) {pricing_info.occupancy_factor} &middot; {pricing_info.tier_discount}
                                 </div>
                             </div>
                         )}

@@ -16,7 +16,7 @@ class FlightController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Flight::with(['route.startingAirport', 'route.landingAirport', 'plane', 'tickets'])
+        $query = Flight::with(['route.startingAirport', 'route.landingAirport', 'plane', 'tickets.reservation.latestState'])
             ->whereHas('route.startingAirport')
             ->whereHas('route.landingAirport')
             ->where('expected_takeoff', '>', now());
@@ -56,7 +56,7 @@ class FlightController extends Controller
 
     public function show(Flight $flight): Response
     {
-        $flight->load(['route.startingAirport', 'route.landingAirport', 'route.layovers', 'plane', 'tickets']);
+        $flight->load(['route.startingAirport', 'route.landingAirport', 'route.layovers', 'plane', 'tickets.reservation.latestState']);
 
         $ticketClasses = TicketClass::all()->map(function (TicketClass $tc) use ($flight) {
             $price = (int) round($this->pricing->priceForClass($flight, $tc));
@@ -103,6 +103,10 @@ class FlightController extends Controller
                 'season_factor' => $this->pricing->seasonLabel($flight),
                 'occupancy_pct' => $occupancy,
                 'occupancy_factor' => $this->pricing->occupancyLabel($flight),
+                'sold' => $flight->tickets
+                    ->filter(fn ($t) => optional($t->reservation?->latestState)->status !== 'cancelled')
+                    ->count(),
+                'capacity' => $flight->plane?->capacity ?? 0,
                 'tier_discount' => 'Bez popusta',
             ],
         ]);

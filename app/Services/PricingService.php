@@ -45,9 +45,17 @@ class PricingService
             return 0;
         }
 
-        $sold = $flight->relationLoaded('tickets')
-            ? $flight->tickets->count()
-            : $flight->tickets()->count();
+        // Cancelled reservations release their seats back to sale even though
+        // we keep them for history (soft cancel), so they must not count here.
+        if ($flight->relationLoaded('tickets')) {
+            $sold = $flight->tickets
+                ->filter(fn ($t) => optional($t->reservation?->latestState)->status !== 'cancelled')
+                ->count();
+        } else {
+            $sold = $flight->tickets()
+                ->whereHas('reservation.latestState', fn ($q) => $q->where('status', '!=', 'cancelled'))
+                ->count();
+        }
 
         return (int) round(min(100, ($sold / $capacity) * 100));
     }
