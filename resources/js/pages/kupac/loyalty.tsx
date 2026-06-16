@@ -12,6 +12,8 @@ interface Summary {
     reward_points: number;
     reward_spent: number;
     expired: number;
+    expiring_soon_amount: number;
+    expiring_soon_date: string | null;
     tier: string;
     next_tier: string | null;
     points_to_next: number;
@@ -106,6 +108,29 @@ export default function Loyalty({ summary, tiers }: Props) {
                                 <div className="mt-1 text-xl font-bold text-muted-foreground">{fmt(summary.expired)}</div>
                             </div>
                         </div>
+
+                        {summary.expiring_soon_amount > 0 && (
+                            <div className="flex items-center justify-between rounded-xl border border-[#F4D6B2] bg-[#FBEFE6] px-5 py-4">
+                                <div>
+                                    <div className="text-[11px] font-semibold uppercase tracking-wide text-[#854F0B]">
+                                        Uskoro ističe
+                                    </div>
+                                    <div className="mt-1 text-sm text-[#5C3705]">
+                                        <span className="font-bold">{fmt(summary.expiring_soon_amount)}</span> reward poena ističe
+                                        {summary.expiring_soon_date && (
+                                            <> najkasnije <span className="font-semibold">{summary.expiring_soon_date}</span></>
+                                        )}
+                                        . Iskoristi ih pre nego što propadnu.
+                                    </div>
+                                </div>
+                                <Link
+                                    href="/kupac/loyalty/istorija?type=reward&action=earned"
+                                    className="rounded-md bg-white px-3 py-1.5 text-xs font-medium text-[#854F0B] shadow-sm hover:bg-[#FBEFE6]"
+                                >
+                                    Pogledaj
+                                </Link>
+                            </div>
+                        )}
 
                         {/* Tiers */}
                         <div className="rounded-xl border border-border bg-card p-5">
