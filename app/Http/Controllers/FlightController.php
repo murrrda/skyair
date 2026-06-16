@@ -16,24 +16,77 @@ class FlightController extends Controller
 
     public function index(Request $request): Response
     {
-        $query = Flight::with(['route.startingAirport', 'route.landingAirport', 'plane', 'tickets'])
+        $sort = $request->input('sort', 'price_asc');
+
+        $flights = $this->searchFlights(
+            $request->input('from'),
+            $request->input('to'),
+            $request->input('date'),
+            $request,
+            $sort,
+        );
+
+        // Round-trip: when a return date is given, the return leg swaps
+        // origin and destination and is searched on that date.
+        $returnFlights = $request->filled('return_date')
+            ? $this->searchFlights($request->input('to'), $request->input('from'), $request->input('return_date'), $request, $sort)
+            : null;
+
+        return Inertia::render('kupac/rezultati-pretrage', [
+            'flights' => $flights,
+            'return_flights' => $returnFlights,
+            'query' => $request->only(['from', 'to', 'date', 'return_date', 'passengers', 'class']),
+            'filters' => $request->only(['price_min', 'price_max', 'time_of_day', 'stops', 'class']),
+            'sort' => $sort,
+        ]);
+    }
+
+    /**
+     * Search bookable flights for a leg and apply all filters.
+     */
+    private function searchFlights(?string $from, ?string $to, ?string $date, Request $request, string $sort): Collection
+    {
+        $query = Flight::with(['route.startingAirport', 'route.landingAirport', 'route.layovers', 'plane', 'tickets'])
             ->whereHas('route.startingAirport')
             ->whereHas('route.landingAirport')
             ->where('expected_takeoff', '>', now());
 
-        if ($request->filled('from')) {
-            $query->whereHas('route.startingAirport', fn ($q) => $q->where('city', 'ilike', '%'.$request->from.'%')
-                ->orWhere('iata_code', 'ilike', $request->from));
+        if ($from !== null && $from !== '') {
+            $query->whereHas('route.startingAirport', fn ($q) => $q->where('city', 'ilike', '%'.$from.'%')
+                ->orWhere('iata_code', 'ilike', $from));
         }
-        if ($request->filled('to')) {
-            $query->whereHas('route.landingAirport', fn ($q) => $q->where('city', 'ilike', '%'.$request->to.'%')
-                ->orWhere('iata_code', 'ilike', $request->to));
+        if ($to !== null && $to !== '') {
+            $query->whereHas('route.landingAirport', fn ($q) => $q->where('city', 'ilike', '%'.$to.'%')
+                ->orWhere('iata_code', 'ilike', $to));
         }
-        if ($request->filled('date')) {
-            $query->whereDate('expected_takeoff', $request->date);
+        if ($date !== null && $date !== '') {
+            $query->whereDate('expected_takeoff', $date);
         }
 
-        $sort = $request->input('sort', 'price_asc');
+        // Time of day: one or more of morning (06–12), afternoon (12–18), evening (18–24).
+        $slots = array_filter((array) $request->input('time_of_day', []));
+        if (! empty($slots)) {
+            $query->where(function ($q) use ($slots) {
+                foreach ($slots as $slot) {
+                    [$start, $end] = match ($slot) {
+                        'morning' => [6, 12],
+                        'afternoon' => [12, 18],
+                        'evening' => [18, 24],
+                        default => [0, 24],
+                    };
+                    $q->orWhereRaw('extract(hour from expected_takeoff) >= ? and extract(hour from expected_takeoff) < ?', [$start, $end]);
+                }
+            });
+        }
+
+        // Stops: direct flights vs. flights with at least one layover.
+        $stops = $request->input('stops');
+        if ($stops === 'direct') {
+            $query->whereDoesntHave('route.layovers');
+        } elseif ($stops === 'connecting') {
+            $query->whereHas('route.layovers');
+        }
+
         $query = match ($sort) {
             'time_asc' => $query->orderBy('expected_takeoff'),
             'duration_asc' => $query->orderByRaw('expected_arrival - expected_takeoff'),
@@ -42,16 +95,26 @@ class FlightController extends Controller
 
         $flights = $query->get()->map(fn (Flight $f) => $this->serializeFlight($f));
 
-        if ($sort === 'price_asc') {
-            $flights = $flights->sortBy('economy_price')->values();
+        // Price range applies to the selected class price (defaults to economy).
+        $priceKey = match ($request->input('class')) {
+            'biznis' => 'business_price',
+            'prva' => 'first_price',
+            default => 'economy_price',
+        };
+        $min = $request->input('price_min');
+        $max = $request->input('price_max');
+        if (is_numeric($min)) {
+            $flights = $flights->filter(fn ($f) => $f[$priceKey] >= (int) $min);
+        }
+        if (is_numeric($max)) {
+            $flights = $flights->filter(fn ($f) => $f[$priceKey] <= (int) $max);
         }
 
-        return Inertia::render('kupac/rezultati-pretrage', [
-            'flights' => $flights,
-            'query' => $request->only(['from', 'to', 'date', 'passengers', 'class']),
-            'filters' => $request->only(['price_min', 'price_max']),
-            'sort' => $sort,
-        ]);
+        if ($sort === 'price_asc') {
+            $flights = $flights->sortBy($priceKey);
+        }
+
+        return $flights->values();
     }
 
     public function show(Flight $flight): Response
@@ -115,7 +178,7 @@ class FlightController extends Controller
         $mins = $f->expected_takeoff && $f->expected_arrival
             ? $f->expected_takeoff->diffInMinutes($f->expected_arrival)
             : 0;
-        $layoverCount = $f->route?->layovers_count ?? 0;
+        $layoverCount = $f->route?->layovers?->count() ?? $f->route?->layovers_count ?? 0;
         $currentPrice = $this->pricing->currentPrice($f);
         $occupancy = $this->pricing->occupancyPct($f);
 

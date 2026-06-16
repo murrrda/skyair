@@ -13,15 +13,18 @@ const destinations = [
 
 export default function PretragaLetova() {
     const { auth } = usePage().props as any;
+    const [tripType, setTripType] = useState<'roundtrip' | 'oneway'>('roundtrip');
     const [from, setFrom] = useState('');
     const [to, setTo] = useState('');
     const [date, setDate] = useState('');
+    const [returnDate, setReturnDate] = useState('');
 
     function handleSearch() {
         router.get('/kupac/rezultati-pretrage', {
             from: from || undefined,
             to: to || undefined,
             date: date || undefined,
+            return_date: tripType === 'roundtrip' && returnDate ? returnDate : undefined,
         });
     }
 
@@ -71,10 +74,18 @@ export default function PretragaLetova() {
                     <div className="mx-auto max-w-6xl px-6">
                         <div className="rounded-xl bg-muted p-5">
                             <div className="mb-4 flex gap-1.5">
-                                <button className="rounded-lg border border-border bg-background px-4 py-2 text-xs font-medium text-foreground">
+                                <button
+                                    type="button"
+                                    onClick={() => setTripType('roundtrip')}
+                                    className={`rounded-lg px-4 py-2 text-xs font-medium ${tripType === 'roundtrip' ? 'border border-border bg-background text-foreground' : 'text-muted-foreground'}`}
+                                >
                                     Povratna
                                 </button>
-                                <button className="rounded-lg px-4 py-2 text-xs text-muted-foreground">
+                                <button
+                                    type="button"
+                                    onClick={() => setTripType('oneway')}
+                                    className={`rounded-lg px-4 py-2 text-xs font-medium ${tripType === 'oneway' ? 'border border-border bg-background text-foreground' : 'text-muted-foreground'}`}
+                                >
                                     U jednom smeru
                                 </button>
                             </div>
@@ -95,9 +106,15 @@ export default function PretragaLetova() {
                                     <Label className="text-[11px] text-muted-foreground">Datum polaska</Label>
                                     <Input type="date" className="mt-1 border-0 p-0 text-sm font-medium shadow-none focus-visible:ring-0" value={date} onChange={e => setDate(e.target.value)} />
                                 </div>
-                                <div className="rounded-lg border border-border bg-background p-3">
+                                <div className={`rounded-lg border border-border bg-background p-3 ${tripType === 'oneway' ? 'opacity-50' : ''}`}>
                                     <Label className="text-[11px] text-muted-foreground">Datum povratka</Label>
-                                    <Input type="date" className="mt-1 border-0 p-0 text-sm font-medium shadow-none focus-visible:ring-0" />
+                                    <Input
+                                        type="date"
+                                        className="mt-1 border-0 p-0 text-sm font-medium shadow-none focus-visible:ring-0"
+                                        value={returnDate}
+                                        disabled={tripType === 'oneway'}
+                                        onChange={e => setReturnDate(e.target.value)}
+                                    />
                                 </div>
                                 <div className="rounded-lg border border-border bg-background p-3">
                                     <Label className="text-[11px] text-muted-foreground">Putnici / klasa</Label>
