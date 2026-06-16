@@ -12,6 +12,7 @@ use App\Models\Reservation;
 use App\Models\ReservationState;
 use App\Models\TicketClass;
 use App\Services\PricingService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -131,7 +132,10 @@ class ReservationController extends Controller
         $finalPrice = $fullPrice - $rewardUsed;
 
         $capacity = $flight->plane?->capacity ?? 180;
-        $takenSeats = $flight->tickets->pluck('seat_number')->toArray();
+        $takenSeats = FlightTicket::where('flight_id', $flight->id)
+            ->whereHas('reservation.latestState', fn ($q) => $q->whereNotIn('status', ['cancelled']))
+            ->pluck('seat_number')
+            ->toArray();
         $seat = 1;
         while (in_array($seat, $takenSeats) && $seat <= $capacity) {
             $seat++;
@@ -182,6 +186,36 @@ class ReservationController extends Controller
         return redirect()->route('kupac.potvrda-rezervacije', $reservation);
     }
 
+    public function payForm(Reservation $reservation): Response
+    {
+        abort_unless($reservation->user_id === request()->user()->id, 403);
+
+        $reservation->load(['latestState', 'tickets.flight.route.startingAirport', 'tickets.flight.route.landingAirport']);
+
+        $ticket = $reservation->tickets->first();
+        $flight = $ticket?->flight;
+        $dep = $flight?->route?->startingAirport;
+        $arr = $flight?->route?->landingAirport;
+        $deadline = $reservation->created_at->copy()->addHours(24);
+
+        return Inertia::render('kupac/placanje-karticom', [
+            'reservation' => [
+                'id' => $reservation->id,
+                'code' => $reservation->code,
+                'total_price' => (int) round((float) $reservation->total_price),
+                'status' => $reservation->latestState?->status,
+                'deadline' => $deadline->toIso8601String(),
+                'deadline_passed' => now()->greaterThan($deadline),
+                'dep_city' => $dep?->city ?? '—',
+                'arr_city' => $arr?->city ?? '—',
+                'dep_code' => $dep?->iata_code ?? '—',
+                'arr_code' => $arr?->iata_code ?? '—',
+                'dep_time' => $flight?->expected_takeoff?->format('d.m.Y H:i'),
+                'passenger' => $ticket ? trim(($ticket->passenger_first_name ?? '').' '.($ticket->passenger_last_name ?? '')) : null,
+            ],
+        ]);
+    }
+
     public function pay(Request $request, Reservation $reservation)
     {
         $reservation->load('latestState');
@@ -202,12 +236,28 @@ class ReservationController extends Controller
             return redirect()->route('kupac.moji-letovi')->with('error', 'Rok za plaćanje je istekao. Rezervacija je otkazana.');
         }
 
+        $request->validate([
+            'card_number' => ['required', 'string', 'regex:/^[\d\s]{13,23}$/'],
+            'card_holder' => ['required', 'string', 'max:255'],
+            'expiry' => ['required', 'regex:#^(0[1-9]|1[0-2])/\d{2}$#'],
+            'cvv' => ['required', 'digits:3'],
+        ], [
+            'card_number.regex' => 'Broj kartice mora imati 13–19 cifara.',
+            'expiry.regex' => 'Datum isteka mora biti u formatu MM/YY.',
+        ]);
+
+        [$expMonth, $expYear] = explode('/', $request->input('expiry'));
+        $expiry = Carbon::create(2000 + (int) $expYear, (int) $expMonth, 1)->endOfMonth();
+        if ($expiry->isPast()) {
+            return back()->withErrors(['expiry' => 'Kartica je istekla.'])->withInput();
+        }
+
         $reservation->load('tickets');
 
-        DB::transaction(function () use ($request, $reservation) {
+        DB::transaction(function () use ($reservation) {
             $payment = Payment::create([
                 'amount' => $reservation->total_price,
-                'method' => $request->input('payment_method', 'card'),
+                'method' => 'card',
                 'status' => 'paid',
             ]);
 
@@ -482,7 +532,7 @@ class ReservationController extends Controller
             'note' => 'nullable|string|max:2000',
         ]);
 
-        $reservation->load(['tickets.flight', 'latestState']);
+        $reservation->load(['tickets.flight', 'latestState', 'payment']);
         $flight = $reservation->tickets->first()?->flight;
 
         if (! $this->withinCancelWindow($flight)) {
@@ -495,7 +545,9 @@ class ReservationController extends Controller
                 ->with('error', 'Rezervacija se ne može otkazati iz trenutnog statusa.');
         }
 
-        DB::transaction(function () use ($request, $reservation) {
+        $wasPaid = $reservation->latestState?->status === 'confirmed';
+
+        DB::transaction(function () use ($request, $reservation, $wasPaid) {
             $rewardUsed = (int) LoyaltyPoint::where('reservation_id', $reservation->id)
                 ->where('type', 'reward')
                 ->where('action', 'spent')
@@ -515,17 +567,36 @@ class ReservationController extends Controller
                 ]);
             }
 
+            if ($wasPaid) {
+                // Roll back the earned points so the cancelled trip stops counting.
+                $statusEarned = (int) LoyaltyPoint::where('reservation_id', $reservation->id)
+                    ->where('type', 'status')->where('action', 'earned')->sum('amount');
+                $rewardEarned = (int) LoyaltyPoint::where('reservation_id', $reservation->id)
+                    ->where('type', 'reward')->where('action', 'earned')
+                    ->where('description', 'not like', 'Povrat poena%')->sum('amount');
+
+                $putnik = Putnik::find($reservation->user_id);
+                if ($putnik) {
+                    $putnik->decrement('status_points', min($statusEarned, $putnik->status_points));
+                    $putnik->decrement('reward_points', min($rewardEarned, $putnik->reward_points));
+                    $putnik->refresh();
+                    $putnik->update(['tier' => $this->calculateTier($putnik->status_points)]);
+                }
+
+                $reservation->payment?->update(['status' => 'refunded']);
+            }
+
             $cancellation = Cancellation::create([
                 'reason' => $request->input('reason'),
                 'note' => $request->input('note'),
                 'cancellation_fee' => 0,
-                'refund_amount' => (float) $reservation->total_price,
+                'refund_amount' => $wasPaid ? (float) $reservation->total_price : 0.0,
                 'reward_points_refunded' => $rewardUsed,
             ]);
 
-            // Release the seats back to sale.
-            $reservation->tickets()->delete();
-
+            // Soft-cancel: keep tickets so the customer still sees the route /
+            // class / passenger in their history. Seat availability is computed
+            // from non-cancelled reservations in store().
             $state = ReservationState::create([
                 'reservation_id' => $reservation->id,
                 'status' => 'cancelled',

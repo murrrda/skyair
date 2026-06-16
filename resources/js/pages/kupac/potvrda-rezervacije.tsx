@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import KupacHeader from '@/components/kupac-header';
 import { Button } from '@/components/ui/button';
 
@@ -88,8 +88,8 @@ export default function PotvrdaRezervacije({ reservation }: Props) {
                                 Detalji su poslati na {r.user_email}
                             </p>
                             <div className="flex justify-center gap-2.5">
-                                <Button className="bg-[#185FA5] hover:bg-[#0C447C]" onClick={() => router.post(`/kupac/rezervacija/${r.id}/plati`)}>
-                                    Plati odmah
+                                <Button className="bg-[#185FA5] hover:bg-[#0C447C]" asChild>
+                                    <Link href={`/kupac/rezervacija/${r.id}/plati`}>Plati odmah</Link>
                                 </Button>
                                 <Button variant="outline" asChild>
                                     <Link href="/kupac/moji-letovi">Plati kasnije</Link>

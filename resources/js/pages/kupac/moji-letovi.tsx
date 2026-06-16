@@ -114,8 +114,8 @@ export default function MojiLetovi({ reservations = [] }: Props) {
                                                     </Button>
                                                 )}
                                                 {r.can_pay && (
-                                                    <Button size="sm" className="bg-[#185FA5] text-xs hover:bg-[#0C447C]" onClick={() => router.post(`/kupac/rezervacija/${r.id}/plati`)}>
-                                                        Plati odmah →
+                                                    <Button size="sm" className="bg-[#185FA5] text-xs hover:bg-[#0C447C]" asChild>
+                                                        <Link href={`/kupac/rezervacija/${r.id}/plati`}>Plati odmah →</Link>
                                                     </Button>
                                                 )}
                                                 <Button variant="outline" size="sm" className="text-xs" asChild>

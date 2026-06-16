@@ -87,6 +87,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/kupac/moji-letovi', [ReservationController::class, 'index'])->name('kupac.moji-letovi');
         Route::get('/kupac/placanje', [ReservationController::class, 'create'])->name('kupac.placanje');
         Route::post('/kupac/placanje', [ReservationController::class, 'store'])->name('kupac.placanje.store');
+        Route::get('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'payForm'])->name('kupac.rezervacija.plati.form');
         Route::post('/kupac/rezervacija/{reservation}/plati', [ReservationController::class, 'pay'])->name('kupac.rezervacija.plati');
         Route::get('/kupac/detalji-rezervacije/{reservation}', [ReservationController::class, 'details'])->name('kupac.detalji-rezervacije');
         Route::get('/kupac/potvrda-rezervacije/{reservation}', [ReservationController::class, 'show'])->name('kupac.potvrda-rezervacije');
