@@ -2,7 +2,10 @@
 
 use App\Models\Airport;
 use App\Models\Flight;
+use App\Models\FlightTicket;
 use App\Models\Plane;
+use App\Models\Reservation;
+use App\Models\ReservationState;
 use App\Models\Route;
 use App\Models\TicketClass;
 use App\Services\PricingService;
@@ -35,7 +38,17 @@ function pricingFlight(string $seasonType = 'none', int $month = 4, int $capacit
     }
     $flight->setRelation('route', $route);
     $flight->setRelation('plane', $plane);
-    $flight->setRelation('tickets', collect($sold > 0 ? range(1, $sold) : []));
+    $tickets = collect();
+    for ($i = 0; $i < $sold; $i++) {
+        $state = new ReservationState;
+        $state->status = 'confirmed';
+        $reservation = new Reservation;
+        $reservation->setRelation('latestState', $state);
+        $ticket = new FlightTicket;
+        $ticket->setRelation('reservation', $reservation);
+        $tickets->push($ticket);
+    }
+    $flight->setRelation('tickets', $tickets);
 
     return $flight;
 }
