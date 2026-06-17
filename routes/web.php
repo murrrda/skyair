@@ -157,6 +157,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::middleware(['can:is-zaposlen'])->prefix('employee')->name('employee.')->group(function () {
         Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
+        Route::get('/certificates', [EmployeeProfileController::class, 'myCertificates'])->name('certificates');
         Route::get('/profile', [EmployeeProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('profile.update');
     });

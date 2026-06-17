@@ -12,6 +12,34 @@ class EmployeeProfileController extends Controller
         return Inertia::render('employee/my-flights');
     }
 
+    public function myCertificates(Request $request)
+    {
+        $employee = $request->user()->zaposlen;
+
+        $certificates = $employee->certificates()
+            ->with('type:id,name')
+            ->orderByDesc('expires_at')
+            ->get()
+            ->map(function ($certificate) {
+                $expiresAt = $certificate->expires_at;
+                $daysUntilExpiry = (int) now()->startOfDay()->diffInDays($expiresAt, false);
+
+                return [
+                    'id' => $certificate->id,
+                    'type' => $certificate->type->name,
+                    'issued_at' => $certificate->issued_at->toDateString(),
+                    'expires_at' => $expiresAt->toDateString(),
+                    'note' => $certificate->note,
+                    'status' => $daysUntilExpiry < 0 ? 'expired' : ($daysUntilExpiry < 30 ? 'expiring' : 'valid'),
+                    'days_until_expiry' => $daysUntilExpiry,
+                ];
+            });
+
+        return Inertia::render('employee/certificates', [
+            'certificates' => $certificates,
+        ]);
+    }
+
     public function edit(Request $request)
     {
         return Inertia::render('employee/profile', [
