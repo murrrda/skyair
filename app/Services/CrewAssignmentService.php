@@ -24,6 +24,18 @@ class CrewAssignmentService
     ];
 
     /**
+     * Minimum rest, in hours, that must separate two flights for the same
+     * employee. Enforced symmetrically around the new flight's window.
+     */
+    public const MIN_REST_HOURS = 2;
+
+    /**
+     * Maximum scheduled flight hours an employee may accumulate within any
+     * rolling 7-day window (±7 days around the new flight's takeoff).
+     */
+    public const MAX_WEEKLY_FLIGHT_HOURS = 60;
+
+    /**
      * Automatically assign qualified, available crew to a flight.
      *
      * The flight's crew_status is set to 'staffed' when the full minimum
@@ -88,7 +100,13 @@ class CrewAssignmentService
      */
     public function eligibleEmployees(Flight $flight, string $roleCode): Collection
     {
-        return Zaposlen::query()
+        // Pad the flight's window by the required rest on both sides, so a
+        // candidate is rejected unless there is at least MIN_REST_HOURS of
+        // clearance before takeoff and after arrival.
+        $restStart = $flight->expected_takeoff->copy()->subHours(self::MIN_REST_HOURS);
+        $restEnd = $flight->expected_arrival->copy()->addHours(self::MIN_REST_HOURS);
+
+        $candidates = Zaposlen::query()
             ->whereIn('role', $this->eligibleRoles($roleCode))
             ->where('status', 'aktivan')
             ->whereNull('datum_otkaza')
@@ -97,22 +115,53 @@ class CrewAssignmentService
             // ... and at least one completed training.
             ->whereHas('trainings', fn ($q) => $q->whereNotNull('finished_at'))
             // Available: not already placed on this flight, and not busy on
-            // another flight overlapping this window.
-            ->whereDoesntHave('assignments', function ($q) use ($flight) {
+            // another flight whose window (plus the rest buffer) overlaps.
+            ->whereDoesntHave('assignments', function ($q) use ($flight, $restStart, $restEnd) {
                 $q->where('status', '!=', 'cancelled')
-                    ->where(function ($inner) use ($flight) {
+                    ->where(function ($inner) use ($flight, $restStart, $restEnd) {
                         $inner->where('flight_id', $flight->id)
-                            ->orWhereHas('flight', function ($fq) use ($flight) {
+                            ->orWhereHas('flight', function ($fq) use ($flight, $restStart, $restEnd) {
                                 $fq->where('id', '!=', $flight->id)
                                     ->where('status', '!=', 'cancelled')
-                                    ->where('expected_takeoff', '<', $flight->expected_arrival)
-                                    ->where('expected_arrival', '>', $flight->expected_takeoff);
+                                    ->where('expected_takeoff', '<', $restEnd)
+                                    ->where('expected_arrival', '>', $restStart);
                             });
                     });
             })
             // Prefer candidates whose primary role matches the seat, so a
             // captain is only used as co-pilot when no co-pilot is available.
             ->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [$roleCode])
+            // Needed to weigh each candidate's rolling weekly flight hours.
+            ->with(['assignments' => fn ($q) => $q->where('status', '!=', 'cancelled')->with('flight')])
             ->get();
+
+        // Reject anyone who would exceed the weekly flight-hour cap once this
+        // flight is added — a check that requires summation, so it runs here
+        // rather than in SQL.
+        $newDuration = $this->flightHours($flight);
+        $windowStart = $flight->expected_takeoff->copy()->subDays(7);
+        $windowEnd = $flight->expected_takeoff->copy()->addDays(7);
+
+        return $candidates
+            ->filter(function (Zaposlen $zaposlen) use ($flight, $newDuration, $windowStart, $windowEnd) {
+                $scheduled = $zaposlen->assignments
+                    ->pluck('flight')
+                    ->filter(fn (?Flight $f) => $f
+                        && $f->id !== $flight->id
+                        && $f->status !== 'cancelled'
+                        && $f->expected_takeoff?->between($windowStart, $windowEnd))
+                    ->sum(fn (Flight $f) => $this->flightHours($f));
+
+                return ($scheduled + $newDuration) <= self::MAX_WEEKLY_FLIGHT_HOURS;
+            })
+            ->values();
+    }
+
+    /**
+     * Scheduled flight duration in hours (expected takeoff → arrival).
+     */
+    private function flightHours(Flight $flight): float
+    {
+        return $flight->expected_takeoff->diffInMinutes($flight->expected_arrival) / 60;
     }
 }
