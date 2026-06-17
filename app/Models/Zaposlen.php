@@ -55,6 +55,11 @@ class Zaposlen extends Model
             ->withTimestamps();
     }
 
+    public function certificates(): HasMany
+    {
+        return $this->hasMany(Certificate::class, 'zaposlen_user_id', 'user_id');
+    }
+
     public function supportWorkLogs(): HasMany
     {
         return $this->hasMany(SupportTicketWorkLog::class, 'employee_id', 'user_id');

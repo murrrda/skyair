@@ -77,13 +77,16 @@ class ZaposlenController extends Controller
             'is_active' => true,
         ]);
 
-        return redirect()->route('admin.employee.index')
-            ->with('success', "Zaposlen {$user->first_name} {$user->last_name} je uspješno registrovan.")
-            ->with('newEmployeeCredentials', [
-                'name' => "{$user->first_name} {$user->last_name}",
-                'email' => $user->email,
-                'password' => $tempPassword,
-            ]);
+        // Carry the generated credentials through the wizard so they surface
+        // once the administrator finishes (flash would not survive the steps).
+        session()->put('pendingEmployeeCredentials', [
+            'name' => "{$user->first_name} {$user->last_name}",
+            'email' => $user->email,
+            'password' => $tempPassword,
+        ]);
+
+        return redirect()->route('admin.employee.certificates.edit', $zaposlen)
+            ->with('success', "Zaposlen {$user->first_name} {$user->last_name} je registrovan. Dodajte sertifikate.");
     }
 
     public function index(Request $request)

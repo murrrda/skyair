@@ -5,6 +5,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DispatcherFlightController;
 use App\Http\Controllers\DispatcherOperationsController;
+use App\Http\Controllers\EmployeeCertificateController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\FlightController;
@@ -45,6 +46,11 @@ Route::post('/employee/login', [LoginController::class, 'employeeLogin'])->name(
 
 Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('employee', ZaposlenController::class);
+
+    Route::get('employee/{employee}/sertifikati', [EmployeeCertificateController::class, 'edit'])
+        ->name('employee.certificates.edit');
+    Route::put('employee/{employee}/sertifikati', [EmployeeCertificateController::class, 'update'])
+        ->name('employee.certificates.update');
 });
 
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);
