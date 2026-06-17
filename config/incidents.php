@@ -17,6 +17,7 @@ return [
     'analysis' => [
         'window_days' => 30,
         'threshold' => 3,
+        'pause_days' => 30,
     ],
 
 ];

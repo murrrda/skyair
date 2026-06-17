@@ -12,13 +12,12 @@ use App\Models\SeverityLevel;
 use App\Models\User;
 use App\Models\Zaposlen;
 use App\Services\IncidentAnalysisService;
-use App\Services\IncidentService;
 use Carbon\CarbonInterface;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
-class IncidentAnalysisTest extends TestCase
+class RiskyEmployeeTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -29,6 +28,7 @@ class IncidentAnalysisTest extends TestCase
         config([
             'incidents.analysis.window_days' => 30,
             'incidents.analysis.threshold' => 3,
+            'incidents.analysis.pause_days' => 30,
         ]);
     }
 
@@ -42,6 +42,11 @@ class IncidentAnalysisTest extends TestCase
             'datum_zaposlenja' => now()->subYear()->toDateString(),
             'status' => 'aktivan',
         ]);
+    }
+
+    private function admin(): User
+    {
+        return $this->makeEmployee('admin')->user;
     }
 
     private function makeFlight(): Flight
@@ -86,13 +91,6 @@ class IncidentAnalysisTest extends TestCase
         ]);
     }
 
-    private function activeBreakCount(Zaposlen $employee): int
-    {
-        return $employee->periodiRizika()
-            ->where(fn ($q) => $q->whereNull('datum_kraja')->orWhere('datum_kraja', '>', now()))
-            ->count();
-    }
-
     /**
      * @param  array<int, Zaposlen>  $employees
      */
@@ -101,7 +99,7 @@ class IncidentAnalysisTest extends TestCase
         $incident = Incident::create([
             'flight_id' => $flight->id,
             'incident_type_id' => IncidentType::factory()->create()->id,
-            'severity_level_id' => SeverityLevel::factory()->create()->id,
+            'severity_level_id' => SeverityLevel::factory()->create(['rank' => 3])->id,
             'occurred_at' => $occurredAt,
             'description' => 'Test incident.',
         ]);
@@ -110,89 +108,87 @@ class IncidentAnalysisTest extends TestCase
         return $incident;
     }
 
-    public function test_employee_is_flagged_after_reaching_the_threshold(): void
+    private function flagEmployee(Flight $flight, Zaposlen $employee): void
     {
-        $flight = $this->makeFlight();
-        $employee = $this->makeEmployee('pilot');
-
         $this->makeIncident($flight, [$employee], now()->subDays(20));
         $this->makeIncident($flight, [$employee], now()->subDays(10));
         $third = $this->makeIncident($flight, [$employee], now()->subDay());
 
         app(IncidentAnalysisService::class)->analyze($third);
-
-        $period = $employee->periodiRizika()
-            ->where(fn ($q) => $q->whereNull('datum_kraja')->orWhere('datum_kraja', '>', now()))
-            ->first();
-        $this->assertNotNull($period);
-        $this->assertSame(IncidentAnalysisService::REASON, $period->razlog->naziv);
-        $this->assertNotNull($period->datum_kraja);
-        $this->assertSame(30, (int) $period->datum_pocetka->diffInDays($period->datum_kraja));
     }
 
-    public function test_employee_below_the_threshold_is_not_flagged(): void
+    public function test_admin_sees_a_flagged_employee_in_the_risky_list(): void
+    {
+        $this->withoutVite();
+        $flight = $this->makeFlight();
+        $employee = $this->makeEmployee('pilot');
+        $this->flagEmployee($flight, $employee);
+
+        $this->actingAs($this->admin())
+            ->get('/admin/incidenti/rizicni')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/incidenti/rizicni/index', false)
+                ->where('meta.count', 1)
+                ->where('employees.0.user_id', $employee->user_id)
+                ->where('employees.0.incident_count', 3)
+            );
+    }
+
+    public function test_risky_list_is_empty_when_no_one_is_flagged(): void
+    {
+        $this->withoutVite();
+
+        $this->actingAs($this->admin())
+            ->get('/admin/incidenti/rizicni')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('meta.count', 0));
+    }
+
+    public function test_non_admin_cannot_view_the_risky_list(): void
+    {
+        $this->actingAs($this->makeEmployee('pilot')->user)
+            ->get('/admin/incidenti/rizicni')
+            ->assertForbidden();
+    }
+
+    public function test_admin_can_view_a_risky_employee_details(): void
+    {
+        $this->withoutVite();
+        $flight = $this->makeFlight();
+        $employee = $this->makeEmployee('pilot');
+        $this->flagEmployee($flight, $employee);
+
+        $this->actingAs($this->admin())
+            ->get("/admin/incidenti/rizicni/{$employee->user_id}")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/incidenti/rizicni/show', false)
+                ->where('employee.user_id', $employee->user_id)
+                ->where('stats.recent_count', 3)
+                ->where('stats.over_by', 0)
+                ->where('pause.duration_days', 30)
+                ->has('incidents', 3)
+            );
+    }
+
+    public function test_details_404_for_an_employee_without_an_active_pause(): void
+    {
+        $employee = $this->makeEmployee('pilot');
+
+        $this->actingAs($this->admin())
+            ->get("/admin/incidenti/rizicni/{$employee->user_id}")
+            ->assertNotFound();
+    }
+
+    public function test_non_admin_cannot_view_risky_employee_details(): void
     {
         $flight = $this->makeFlight();
         $employee = $this->makeEmployee('pilot');
+        $this->flagEmployee($flight, $employee);
 
-        $this->makeIncident($flight, [$employee], now()->subDays(10));
-        $second = $this->makeIncident($flight, [$employee], now()->subDay());
-
-        app(IncidentAnalysisService::class)->analyze($second);
-
-        $this->assertSame(0, $this->activeBreakCount($employee));
-    }
-
-    public function test_incidents_outside_the_window_do_not_count(): void
-    {
-        $flight = $this->makeFlight();
-        $employee = $this->makeEmployee('pilot');
-
-        $this->makeIncident($flight, [$employee], now()->subDays(120));
-        $this->makeIncident($flight, [$employee], now()->subDays(90));
-        $this->makeIncident($flight, [$employee], now()->subDays(60));
-        $recent = $this->makeIncident($flight, [$employee], now()->subDay());
-
-        app(IncidentAnalysisService::class)->analyze($recent);
-
-        $this->assertSame(0, $this->activeBreakCount($employee));
-    }
-
-    public function test_a_second_risk_period_is_not_opened_while_one_is_active(): void
-    {
-        $flight = $this->makeFlight();
-        $employee = $this->makeEmployee('pilot');
-
-        $this->makeIncident($flight, [$employee], now()->subDays(20));
-        $this->makeIncident($flight, [$employee], now()->subDays(10));
-        $third = $this->makeIncident($flight, [$employee], now()->subDays(2));
-        $fourth = $this->makeIncident($flight, [$employee], now()->subDay());
-
-        $service = app(IncidentAnalysisService::class);
-        $service->analyze($third);
-        $service->analyze($fourth);
-
-        $this->assertSame(1, $this->activeBreakCount($employee));
-    }
-
-    public function test_recording_an_incident_through_the_service_flags_a_repeat_offender(): void
-    {
-        $flight = $this->makeFlight();
-        $type = IncidentType::factory()->create();
-        $severity = SeverityLevel::factory()->create();
-        $employee = $this->makeEmployee('pilot');
-
-        $this->makeIncident($flight, [$employee], now()->subDays(15));
-        $this->makeIncident($flight, [$employee], now()->subDays(5));
-
-        app(IncidentService::class)->record([
-            'flight_id' => $flight->id,
-            'incident_type_id' => $type->id,
-            'severity_level_id' => $severity->id,
-            'occurred_at' => now(),
-            'description' => 'Treći incident u mesecu.',
-        ], [$employee->user_id]);
-
-        $this->assertSame(1, $this->activeBreakCount($employee));
+        $this->actingAs($this->makeEmployee('pilot')->user)
+            ->get("/admin/incidenti/rizicni/{$employee->user_id}")
+            ->assertForbidden();
     }
 }

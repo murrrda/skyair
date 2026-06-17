@@ -34,6 +34,7 @@ class IncidentAnalysisService
     {
         $windowDays = (int) config('incidents.analysis.window_days');
         $threshold = (int) config('incidents.analysis.threshold');
+        $pauseDays = (int) config('incidents.analysis.pause_days');
 
         $recentCount = Incident::query()
             ->whereHas('responsibleEmployees', fn ($query) => $query->whereKey($employee->user_id))
@@ -47,8 +48,8 @@ class IncidentAnalysisService
         $razlog = Razlog::firstOrCreate(['naziv' => self::REASON]);
 
         $alreadyOnBreak = $employee->periodiRizika()
-            ->whereNull('datum_kraja')
             ->where('razlog_id', $razlog->id)
+            ->where(fn ($query) => $query->whereNull('datum_kraja')->orWhere('datum_kraja', '>', now()))
             ->exists();
 
         if ($alreadyOnBreak) {
@@ -57,7 +58,7 @@ class IncidentAnalysisService
 
         $employee->periodiRizika()->create([
             'datum_pocetka' => now()->toDateString(),
-            'datum_kraja' => null,
+            'datum_kraja' => now()->addDays($pauseDays)->toDateString(),
             'razlog_id' => $razlog->id,
         ]);
     }
