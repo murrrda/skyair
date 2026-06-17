@@ -11,6 +11,7 @@ use App\Http\Controllers\EmployeeSupportController;
 use App\Http\Controllers\EmployeeTrainingController;
 use App\Http\Controllers\FlightController;
 use App\Http\Controllers\FlightTemplateController;
+use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PlaneController;
@@ -78,6 +79,9 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::delete('/rute/{route}', [RouteController::class, 'destroy'])->name('rute.destroy');
 
     Route::get('/kategorije', [CategoryController::class, 'index'])->name('kategorije.index');
+
+    Route::get('/incidenti', [IncidentController::class, 'index'])->name('incidenti.index');
+    Route::post('/incidenti', [IncidentController::class, 'store'])->name('incidenti.store');
 
     Route::get('/flota/{plane}/servisi', [ServiceController::class, 'planeIndex'])->name('flota.servisi.index');
     Route::get('/flota/{plane}/servisi/novi', [ServiceController::class, 'planeCreate'])->name('flota.servisi.create');

@@ -27,7 +27,7 @@ class IncidentCatalogueTest extends TestCase
 
         $this->assertSame(4, SeverityLevel::count());
         $this->assertSame(
-            ['Nizak', 'Srednji', 'Visok', 'Kritičan'],
+            ['Low', 'Medium', 'High', 'Critical'],
             SeverityLevel::orderBy('rank')->pluck('name')->all()
         );
     }
