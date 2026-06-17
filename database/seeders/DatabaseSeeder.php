@@ -26,6 +26,7 @@ class DatabaseSeeder extends Seeder
         $this->call(TrainingTypeSeeder::class);
         $this->call(IncidentTypeSeeder::class);
         $this->call(SeverityLevelSeeder::class);
+        $this->call(RazlogSeeder::class);
         $this->call(UlogaSeeder::class);
     }
 }
