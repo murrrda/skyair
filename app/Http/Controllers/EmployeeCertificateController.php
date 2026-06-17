@@ -38,14 +38,9 @@ class EmployeeCertificateController extends Controller
     {
         $service->sync($employee, $request->validated()['certificates']);
 
-        // TODO(SCRUM-26): point "Sledeći korak" at the trainings step once it exists.
-        $redirect = redirect()->route('admin.employee.index')
+        // Continue to step 3 (trainings); the pending credentials stay in the
+        // session and are surfaced once that final step is saved.
+        return redirect()->route('admin.employee.trainings.edit', $employee)
             ->with('success', 'Sertifikati zaposlenika su sačuvani.');
-
-        if ($credentials = session()->pull('pendingEmployeeCredentials')) {
-            $redirect->with('newEmployeeCredentials', $credentials);
-        }
-
-        return $redirect;
     }
 }

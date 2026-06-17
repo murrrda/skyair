@@ -8,6 +8,7 @@ use App\Http\Controllers\DispatcherOperationsController;
 use App\Http\Controllers\EmployeeCertificateController;
 use App\Http\Controllers\EmployeeProfileController;
 use App\Http\Controllers\EmployeeSupportController;
+use App\Http\Controllers\EmployeeTrainingController;
 use App\Http\Controllers\FlightController;
 use App\Http\Controllers\FlightTemplateController;
 use App\Http\Controllers\LoyaltyController;
@@ -51,6 +52,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         ->name('employee.certificates.edit');
     Route::put('employee/{employee}/sertifikati', [EmployeeCertificateController::class, 'update'])
         ->name('employee.certificates.update');
+
+    Route::get('employee/{employee}/obuke', [EmployeeTrainingController::class, 'edit'])
+        ->name('employee.trainings.edit');
+    Route::put('employee/{employee}/obuke', [EmployeeTrainingController::class, 'update'])
+        ->name('employee.trainings.update');
 });
 
 Route::post('/admin/login', [LoginController::class, 'adminLogin']);

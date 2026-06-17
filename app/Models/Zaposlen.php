@@ -60,6 +60,11 @@ class Zaposlen extends Model
         return $this->hasMany(Certificate::class, 'zaposlen_user_id', 'user_id');
     }
 
+    public function trainings(): HasMany
+    {
+        return $this->hasMany(EmployeeTraining::class, 'zaposlen_user_id', 'user_id');
+    }
+
     public function supportWorkLogs(): HasMany
     {
         return $this->hasMany(SupportTicketWorkLog::class, 'employee_id', 'user_id');

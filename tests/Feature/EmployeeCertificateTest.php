@@ -71,7 +71,7 @@ class EmployeeCertificateTest extends TestCase
                     ],
                 ],
             ])
-            ->assertRedirect(route('admin.employee.index'));
+            ->assertRedirect(route('admin.employee.trainings.edit', $employee->user_id));
 
         $this->assertDatabaseHas('certificates', [
             'zaposlen_user_id' => $employee->user_id,
