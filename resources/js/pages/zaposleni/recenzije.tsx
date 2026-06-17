@@ -49,7 +49,7 @@ return '—';
     }
 }
 
-function Stars({ value }: { value: number }) {
+function Stars({ value, hideLabel }: { value: number; hideLabel?: boolean }) {
     return (
         <span className="inline-flex items-center gap-0.5">
             {[1, 2, 3, 4, 5].map((n) => (
@@ -57,7 +57,7 @@ function Stars({ value }: { value: number }) {
                     {n <= value ? '★' : '☆'}
                 </span>
             ))}
-            <span className="ml-1 text-[11px] text-muted-foreground">{value}/5</span>
+            {!hideLabel && <span className="ml-1 text-[11px] text-muted-foreground">{value}/5</span>}
         </span>
     );
 }
@@ -149,7 +149,7 @@ export default function ZaposleniRecenzije() {
                                     {stats.average_rating ?? '—'}
                                 </span>
                                 {stats.average_rating !== null && (
-                                    <Stars value={Math.round(stats.average_rating)} />
+                                    <Stars value={Math.round(stats.average_rating)} hideLabel />
                                 )}
                             </div>
                         </div>
