@@ -11,15 +11,8 @@ type Flight = {
     registration: string;
     role: string;
     status: 'confirmed' | 'changed' | 'cancelled' | 'completed';
-    notice?: string;
+    notice?: string | null;
 };
-
-const MOCK_FLIGHTS: Flight[] = [
-    { id: 1, route: 'Beograd → Pariz', date: '15. jul 2026. · 10:30', aircraft: 'Airbus A320', registration: 'YU-APB', role: 'Kapetan', status: 'confirmed', notice: 'Novo raspoređivanje' },
-    { id: 2, route: 'Beograd → London', date: '28. jul 2026. · 08:15', aircraft: 'Boeing 737', registration: 'YU-ANK', role: 'Kapetan', status: 'changed' },
-    { id: 3, route: 'Beograd → Atina', date: '10. jun 2026. · 14:00', aircraft: 'Airbus A319', registration: 'YU-APC', role: 'Kapetan', status: 'cancelled' },
-    { id: 4, route: 'Beograd → Beč', date: '12. mart 2026. · 11:00', aircraft: 'Airbus A319', registration: 'YU-APC', role: 'Kapetan', status: 'completed' },
-];
 
 const STATUS_CONFIG = {
     confirmed: { label: 'Potvrđeno', className: 'bg-emerald-50 text-emerald-700 border border-emerald-200' },
@@ -71,12 +64,12 @@ return flights.filter((f) => f.status === 'cancelled');
     return flights;
 }
 
-export default function MyFlights() {
+export default function MyFlights({ flights = [] }: { flights?: Flight[] }) {
     const { auth } = usePage().props as unknown as { auth: Auth };
     const firstName = auth?.user?.name?.split(' ')[0] ?? 'kolega';
     const [activeTab, setActiveTab] = useState<Tab>('all');
 
-    const filtered = filterFlights(MOCK_FLIGHTS, activeTab);
+    const filtered = filterFlights(flights, activeTab);
 
     return (
         <>

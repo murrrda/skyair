@@ -74,4 +74,9 @@ class Zaposlen extends Model
     {
         return $this->hasMany(EmployeeShift::class, 'employee_id', 'user_id');
     }
+
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(Dodeljen::class, 'zaposlen_user_id', 'user_id');
+    }
 }
