@@ -8,6 +8,7 @@ use App\Models\Flight;
 use App\Models\Plane;
 use App\Models\Route;
 use App\Models\Service;
+use App\Services\CrewAssignmentService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 class DispatcherFlightController extends Controller
 {
+    public function __construct(private readonly CrewAssignmentService $crewAssignment) {}
+
     public function index(): Response
     {
         $flights = Flight::with(['route.startingAirport', 'route.landingAirport', 'plane'])
@@ -90,7 +93,9 @@ class DispatcherFlightController extends Controller
             }
         }
 
-        Flight::create($data);
+        $flight = Flight::create($data);
+
+        $this->crewAssignment->assign($flight);
 
         return redirect()->route('dispatcher.index')
             ->with('success', 'Let uspešno zakazan.');

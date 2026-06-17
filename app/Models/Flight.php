@@ -16,6 +16,7 @@ class Flight extends Model
         'expected_takeoff',
         'expected_arrival',
         'status',
+        'crew_status',
         'longitude',
         'latitude',
         'base_price',
@@ -76,5 +77,10 @@ class Flight extends Model
     public function layovers()
     {
         return $this->hasManyThrough(Layover::class, Route::class, 'id', 'route_id', 'route_id', 'id');
+    }
+
+    public function crewAssignments()
+    {
+        return $this->hasMany(Dodeljen::class, 'flight_id');
     }
 }

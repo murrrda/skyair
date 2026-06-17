@@ -24,5 +24,6 @@ class DatabaseSeeder extends Seeder
         $this->call(AirportSeeder::class);
         $this->call(CertificateTypeSeeder::class);
         $this->call(TrainingTypeSeeder::class);
+        $this->call(UlogaSeeder::class);
     }
 }
