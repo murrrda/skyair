@@ -1,9 +1,16 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { FileText, User } from 'lucide-react';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 type TipUgovora = {
@@ -61,7 +68,7 @@ function Field({
 }) {
     return (
         <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <Label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 {label}
                 {required && <span className="ml-0.5 text-destructive">*</span>}
             </Label>
@@ -74,22 +81,26 @@ function Field({
 export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
     const contract = zaposlen.tipovi_ugovora[0];
 
-    const { data, setData, put, processing, errors } = useForm({
-        first_name:      zaposlen.user.first_name,
-        last_name:       zaposlen.user.last_name,
-        email:           zaposlen.user.email,
-        date_of_birth:   zaposlen.user.date_of_birth ?? '',
-        jmbg:            zaposlen.user.jmbg ?? '',
-        gender:          zaposlen.user.gender ?? '',
-        country:         zaposlen.user.country ?? '',
-        phone_number:    zaposlen.user.phone_number ?? '',
-        address:         zaposlen.user.address ?? '',
-        role:            zaposlen.role,
+    const actionRef = useRef<'continue' | 'save'>('save');
+
+    const { data, setData, transform, put, processing, errors } = useForm({
+        first_name: zaposlen.user.first_name,
+        last_name: zaposlen.user.last_name,
+        email: zaposlen.user.email,
+        date_of_birth: zaposlen.user.date_of_birth ?? '',
+        jmbg: zaposlen.user.jmbg ?? '',
+        gender: zaposlen.user.gender ?? '',
+        country: zaposlen.user.country ?? '',
+        phone_number: zaposlen.user.phone_number ?? '',
+        address: zaposlen.user.address ?? '',
+        role: zaposlen.role,
         datum_zaposlenja: zaposlen.datum_zaposlenja,
-        tip_ugovora_id:  contract ? String(contract.id) : '',
-        datum_isteka:    contract?.pivot.datum_isteka ?? '',
-        napomena:        contract?.pivot.napomena ?? '',
+        tip_ugovora_id: contract ? String(contract.id) : '',
+        datum_isteka: contract?.pivot.datum_isteka ?? '',
+        napomena: contract?.pivot.napomena ?? '',
     });
+
+    transform((d) => ({ ...d, action: actionRef.current }));
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -119,30 +130,42 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                                 <div
                                     className={cn(
                                         'text-sm font-medium',
-                                        step.number === 1 ? 'text-foreground' : 'text-muted-foreground',
+                                        step.number === 1
+                                            ? 'text-foreground'
+                                            : 'text-muted-foreground',
                                     )}
                                 >
                                     {step.label}
                                 </div>
                                 {step.sublabel && (
-                                    <div className="text-xs text-muted-foreground">{step.sublabel}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {step.sublabel}
+                                    </div>
                                 )}
                             </div>
                         </div>
-                        {i < STEPS.length - 1 && <div className="mx-6 h-px w-28 bg-border" />}
+                        {i < STEPS.length - 1 && (
+                            <div className="mx-6 h-px w-28 bg-border" />
+                        )}
                     </div>
                 ))}
             </div>
 
             {/* Page title */}
             <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Osnovni podaci zaposlenog</h1>
+                <h1 className="text-2xl font-bold tracking-tight">
+                    Osnovni podaci zaposlenog
+                </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                     Unesite lične podatke i informacije o ugovoru zaposlenog.
                 </p>
             </div>
 
-            <form id="edit-form" onSubmit={handleSubmit} className="space-y-6 pb-24">
+            <form
+                id="edit-form"
+                onSubmit={handleSubmit}
+                className="space-y-6 pb-24"
+            >
                 {/* Lični podaci */}
                 <div className="rounded-lg border border-border bg-card p-6">
                     <div className="mb-5 flex items-center gap-2.5">
@@ -152,18 +175,38 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
 
                     <div className="space-y-4">
                         <div className="grid grid-cols-3 gap-4">
-                            <Field label="IME" required error={errors.first_name}>
+                            <Field
+                                label="IME"
+                                required
+                                error={errors.first_name}
+                            >
                                 <Input
                                     value={data.first_name}
-                                    onChange={(e) => setData('first_name', e.target.value)}
-                                    className={errors.first_name ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('first_name', e.target.value)
+                                    }
+                                    className={
+                                        errors.first_name
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
-                            <Field label="PREZIME" required error={errors.last_name}>
+                            <Field
+                                label="PREZIME"
+                                required
+                                error={errors.last_name}
+                            >
                                 <Input
                                     value={data.last_name}
-                                    onChange={(e) => setData('last_name', e.target.value)}
-                                    className={errors.last_name ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('last_name', e.target.value)
+                                    }
+                                    className={
+                                        errors.last_name
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
                             <Field label="JMBG" required error={errors.jmbg}>
@@ -171,29 +214,57 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                                     placeholder="1234567890123"
                                     maxLength={13}
                                     value={data.jmbg}
-                                    onChange={(e) => setData('jmbg', e.target.value)}
-                                    className={errors.jmbg ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('jmbg', e.target.value)
+                                    }
+                                    className={
+                                        errors.jmbg ? 'border-destructive' : ''
+                                    }
                                 />
                             </Field>
                         </div>
 
                         <div className="grid grid-cols-3 gap-4">
-                            <Field label="DATUM ROĐENJA" required error={errors.date_of_birth}>
+                            <Field
+                                label="DATUM ROĐENJA"
+                                required
+                                error={errors.date_of_birth}
+                            >
                                 <Input
                                     type="date"
                                     value={data.date_of_birth}
-                                    onChange={(e) => setData('date_of_birth', e.target.value)}
-                                    className={errors.date_of_birth ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('date_of_birth', e.target.value)
+                                    }
+                                    className={
+                                        errors.date_of_birth
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
                             <Field label="POL" error={errors.gender}>
-                                <Select value={data.gender} onValueChange={(v) => setData('gender', v)}>
-                                    <SelectTrigger className={cn('w-full', errors.gender ? 'border-destructive' : '')}>
+                                <Select
+                                    value={data.gender}
+                                    onValueChange={(v) => setData('gender', v)}
+                                >
+                                    <SelectTrigger
+                                        className={cn(
+                                            'w-full',
+                                            errors.gender
+                                                ? 'border-destructive'
+                                                : '',
+                                        )}
+                                    >
                                         <SelectValue placeholder="Izaberite..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="male">Muški</SelectItem>
-                                        <SelectItem value="female">Ženski</SelectItem>
+                                        <SelectItem value="male">
+                                            Muški
+                                        </SelectItem>
+                                        <SelectItem value="female">
+                                            Ženski
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </Field>
@@ -201,26 +272,49 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                                 <Input
                                     placeholder="npr. Srbija"
                                     value={data.country}
-                                    onChange={(e) => setData('country', e.target.value)}
-                                    className={errors.country ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('country', e.target.value)
+                                    }
+                                    className={
+                                        errors.country
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <Field label="E-MAIL ADRESA" required error={errors.email}>
+                            <Field
+                                label="E-MAIL ADRESA"
+                                required
+                                error={errors.email}
+                            >
                                 <Input
                                     type="email"
                                     value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    className={errors.email ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('email', e.target.value)
+                                    }
+                                    className={
+                                        errors.email ? 'border-destructive' : ''
+                                    }
                                 />
                             </Field>
-                            <Field label="BROJ TELEFONA" error={errors.phone_number}>
+                            <Field
+                                label="BROJ TELEFONA"
+                                error={errors.phone_number}
+                            >
                                 <Input
                                     value={data.phone_number}
-                                    onChange={(e) => setData('phone_number', e.target.value)}
-                                    className={errors.phone_number ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('phone_number', e.target.value)
+                                    }
+                                    className={
+                                        errors.phone_number
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
                         </div>
@@ -228,8 +322,12 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                         <Field label="ADRESA STANOVANJA" error={errors.address}>
                             <Input
                                 value={data.address}
-                                onChange={(e) => setData('address', e.target.value)}
-                                className={errors.address ? 'border-destructive' : ''}
+                                onChange={(e) =>
+                                    setData('address', e.target.value)
+                                }
+                                className={
+                                    errors.address ? 'border-destructive' : ''
+                                }
                             />
                         </Field>
                     </div>
@@ -245,27 +343,57 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="ULOGA" required error={errors.role}>
-                                <Select value={data.role} onValueChange={(v) => setData('role', v)}>
-                                    <SelectTrigger className={cn('w-full', errors.role ? 'border-destructive' : '')}>
+                                <Select
+                                    value={data.role}
+                                    onValueChange={(v) => setData('role', v)}
+                                >
+                                    <SelectTrigger
+                                        className={cn(
+                                            'w-full',
+                                            errors.role
+                                                ? 'border-destructive'
+                                                : '',
+                                        )}
+                                    >
                                         <SelectValue placeholder="Izaberite ulogu..." />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="pilot">Pilot</SelectItem>
-                                        <SelectItem value="cabin_crew">Kabinsko osoblje</SelectItem>
+                                        <SelectItem value="pilot">
+                                            Pilot
+                                        </SelectItem>
+                                        <SelectItem value="cabin_crew">
+                                            Kabinsko osoblje
+                                        </SelectItem>
                                     </SelectContent>
                                 </Select>
                             </Field>
-                            <Field label="TIP UGOVORA" required error={errors.tip_ugovora_id}>
+                            <Field
+                                label="TIP UGOVORA"
+                                required
+                                error={errors.tip_ugovora_id}
+                            >
                                 <Select
                                     value={data.tip_ugovora_id}
-                                    onValueChange={(v) => setData('tip_ugovora_id', v)}
+                                    onValueChange={(v) =>
+                                        setData('tip_ugovora_id', v)
+                                    }
                                 >
-                                    <SelectTrigger className={cn('w-full', errors.tip_ugovora_id ? 'border-destructive' : '')}>
+                                    <SelectTrigger
+                                        className={cn(
+                                            'w-full',
+                                            errors.tip_ugovora_id
+                                                ? 'border-destructive'
+                                                : '',
+                                        )}
+                                    >
                                         <SelectValue placeholder="Izaberite tip..." />
                                     </SelectTrigger>
                                     <SelectContent>
                                         {tipoviUgovora.map((tip) => (
-                                            <SelectItem key={tip.id} value={String(tip.id)}>
+                                            <SelectItem
+                                                key={tip.id}
+                                                value={String(tip.id)}
+                                            >
                                                 {tip.naziv}
                                             </SelectItem>
                                         ))}
@@ -275,20 +403,42 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
-                            <Field label="DATUM POČETKA RADA" required error={errors.datum_zaposlenja}>
+                            <Field
+                                label="DATUM POČETKA RADA"
+                                required
+                                error={errors.datum_zaposlenja}
+                            >
                                 <Input
                                     type="date"
                                     value={data.datum_zaposlenja}
-                                    onChange={(e) => setData('datum_zaposlenja', e.target.value)}
-                                    className={errors.datum_zaposlenja ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData(
+                                            'datum_zaposlenja',
+                                            e.target.value,
+                                        )
+                                    }
+                                    className={
+                                        errors.datum_zaposlenja
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
-                            <Field label="DATUM ISTEKA UGOVORA" error={errors.datum_isteka}>
+                            <Field
+                                label="DATUM ISTEKA UGOVORA"
+                                error={errors.datum_isteka}
+                            >
                                 <Input
                                     type="date"
                                     value={data.datum_isteka}
-                                    onChange={(e) => setData('datum_isteka', e.target.value)}
-                                    className={errors.datum_isteka ? 'border-destructive' : ''}
+                                    onChange={(e) =>
+                                        setData('datum_isteka', e.target.value)
+                                    }
+                                    className={
+                                        errors.datum_isteka
+                                            ? 'border-destructive'
+                                            : ''
+                                    }
                                 />
                             </Field>
                         </div>
@@ -297,7 +447,9 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             <textarea
                                 rows={4}
                                 value={data.napomena}
-                                onChange={(e) => setData('napomena', e.target.value)}
+                                onChange={(e) =>
+                                    setData('napomena', e.target.value)
+                                }
                                 placeholder="Dodatne napomene o zaposlenom ili ugovoru..."
                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                             />
@@ -307,10 +459,11 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
             </form>
 
             {/* Sticky footer */}
-            <div className="fixed bottom-0 left-0 right-0 border-t border-border bg-background">
+            <div className="fixed right-0 bottom-0 left-0 border-t border-border bg-background">
                 <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
                     <span className="text-sm text-muted-foreground">
-                        Korak 1 od 3 &bull; <span className="text-foreground">*Obavezna polja</span>
+                        Korak 1 od 3 &bull;{' '}
+                        <span className="text-foreground">*Obavezna polja</span>
                     </span>
                     <div className="flex items-center gap-3">
                         <Button type="button" variant="outline" asChild>
@@ -320,6 +473,7 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             type="submit"
                             form="edit-form"
                             disabled={processing}
+                            onClick={() => (actionRef.current = 'continue')}
                             className="bg-[#185FA5] hover:bg-[#0C447C]"
                         >
                             Sledeći korak →
@@ -328,7 +482,8 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             type="submit"
                             form="edit-form"
                             disabled={processing}
-                            className="bg-emerald-700 hover:bg-emerald-800 text-white"
+                            onClick={() => (actionRef.current = 'save')}
+                            className="bg-[#0F6E56] text-white hover:bg-[#0B5743]"
                         >
                             ✓ Sačuvaj promene
                         </Button>

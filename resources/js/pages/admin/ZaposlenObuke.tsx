@@ -34,6 +34,7 @@ type Props = {
     };
     trainings: Training[];
     trainingTypes: TrainingType[];
+    mode: 'create' | 'edit';
 };
 
 type TrainingRow = {
@@ -101,6 +102,7 @@ export default function ZaposlenObuke({
     zaposlen,
     trainings,
     trainingTypes,
+    mode,
 }: Props) {
     const { data, setData, put, processing, errors } = useForm<{
         trainings: TrainingRow[];
@@ -385,7 +387,9 @@ export default function ZaposlenObuke({
                             disabled={processing}
                             className="bg-[#0F6E56] hover:bg-[#0B5743]"
                         >
-                            ✓ Sačuvaj zaposlenog
+                            {mode === 'edit'
+                                ? '✓ Sačuvaj promene'
+                                : '✓ Sačuvaj zaposlenog'}
                         </Button>
                     </div>
                 </div>

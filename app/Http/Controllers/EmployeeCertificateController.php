@@ -31,6 +31,9 @@ class EmployeeCertificateController extends Controller
                 ->get(['id', 'certificate_type_id', 'issued_at', 'expires_at', 'note']),
             'certificateTypes' => CertificateType::query()->active()->orderBy('name')
                 ->get(['id', 'name', 'default_validity_months']),
+            // During creation the pending credentials mark the forward-only
+            // wizard; otherwise the admin is editing an existing employee.
+            'mode' => session()->has('pendingEmployeeCredentials') ? 'create' : 'edit',
         ]);
     }
 
@@ -38,8 +41,13 @@ class EmployeeCertificateController extends Controller
     {
         $service->sync($employee, $request->validated()['certificates']);
 
-        // Continue to step 3 (trainings); the pending credentials stay in the
-        // session and are surfaced once that final step is saved.
+        // "Sačuvaj promene" saves and exits; otherwise continue to step 3
+        // (trainings), where the pending credentials are finally surfaced.
+        if ($request->input('action') === 'save') {
+            return redirect()->route('admin.employee.index')
+                ->with('success', 'Sertifikati zaposlenika su sačuvani.');
+        }
+
         return redirect()->route('admin.employee.trainings.edit', $employee)
             ->with('success', 'Sertifikati zaposlenika su sačuvani.');
     }

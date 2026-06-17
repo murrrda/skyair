@@ -206,6 +206,13 @@ class ZaposlenController extends Controller
             $employee->tipoviUgovora()->attach($validated['tip_ugovora_id'], $contractPivot);
         }
 
+        // "Sledeći korak" walks the edit wizard into the certificates step;
+        // "Sačuvaj promene" saves and returns to the list.
+        if ($request->input('action') === 'continue') {
+            return redirect()->route('admin.employee.certificates.edit', $employee)
+                ->with('success', 'Podaci zaposlenika su ažurirani.');
+        }
+
         return redirect()->route('admin.employee.index')
             ->with('success', 'Podaci zaposlenika su ažurirani.');
     }

@@ -31,6 +31,7 @@ class EmployeeTrainingController extends Controller
                 ->get(['id', 'training_type_id', 'started_at', 'finished_at', 'note']),
             'trainingTypes' => TrainingType::query()->active()->orderBy('name')
                 ->get(['id', 'name', 'duration_days']),
+            'mode' => session()->has('pendingEmployeeCredentials') ? 'create' : 'edit',
         ]);
     }
 

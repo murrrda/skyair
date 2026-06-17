@@ -1,5 +1,6 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Award, Check, Plus, X } from 'lucide-react';
+import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,6 +35,7 @@ type Props = {
     };
     certificates: Certificate[];
     certificateTypes: CertificateType[];
+    mode: 'create' | 'edit';
 };
 
 type CertificateRow = {
@@ -114,12 +116,17 @@ export default function ZaposlenSertifikati({
     zaposlen,
     certificates,
     certificateTypes,
+    mode,
 }: Props) {
-    const { data, setData, put, processing, errors } = useForm<{
+    const actionRef = useRef<'continue' | 'save'>('continue');
+
+    const { data, setData, transform, put, processing, errors } = useForm<{
         certificates: CertificateRow[];
     }>({
         certificates: toRows(certificates),
     });
+
+    transform((d) => ({ ...d, action: actionRef.current }));
 
     const fieldErrors = errors as unknown as Record<string, string>;
 
@@ -426,10 +433,22 @@ export default function ZaposlenSertifikati({
                             type="submit"
                             form="certificates-form"
                             disabled={processing}
+                            onClick={() => (actionRef.current = 'continue')}
                             className="bg-[#185FA5] hover:bg-[#0C447C]"
                         >
                             Sledeći korak →
                         </Button>
+                        {mode === 'edit' && (
+                            <Button
+                                type="submit"
+                                form="certificates-form"
+                                disabled={processing}
+                                onClick={() => (actionRef.current = 'save')}
+                                className="bg-[#0F6E56] text-white hover:bg-[#0B5743]"
+                            >
+                                ✓ Sačuvaj promene
+                            </Button>
+                        )}
                     </div>
                 </div>
             </div>
