@@ -40,6 +40,27 @@ class EmployeeProfileController extends Controller
         ]);
     }
 
+    public function myTrainings(Request $request)
+    {
+        $employee = $request->user()->zaposlen;
+
+        $trainings = $employee->trainings()
+            ->with('type:id,name')
+            ->orderByDesc('finished_at')
+            ->get()
+            ->map(fn ($training) => [
+                'id' => $training->id,
+                'type' => $training->type->name,
+                'started_at' => $training->started_at->toDateString(),
+                'finished_at' => $training->finished_at->toDateString(),
+                'note' => $training->note,
+            ]);
+
+        return Inertia::render('employee/trainings', [
+            'trainings' => $trainings,
+        ]);
+    }
+
     public function edit(Request $request)
     {
         return Inertia::render('employee/profile', [

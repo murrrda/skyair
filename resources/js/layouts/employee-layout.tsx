@@ -10,11 +10,19 @@ import type { Auth } from '@/types';
 const NAV_LINKS = [
     { label: 'Moji letovi', href: '/employee/my-flights' },
     { label: 'Moji sertifikati', href: '/employee/certificates' },
+    { label: 'Moje obuke', href: '/employee/trainings' },
 ];
 
-export default function EmployeeLayout({ children }: { children: React.ReactNode }) {
+export default function EmployeeLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
     const page = usePage();
-    const { auth, flash } = page.props as unknown as { auth: Auth; flash?: { success?: string } };
+    const { auth, flash } = page.props as unknown as {
+        auth: Auth;
+        flash?: { success?: string };
+    };
     const currentUrl = page.url;
     const getInitials = useInitials();
     const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -22,19 +30,23 @@ export default function EmployeeLayout({ children }: { children: React.ReactNode
 
     useEffect(() => {
         if (flash?.success) {
-toast.success(flash.success, { duration: 2000 });
-}
+            toast.success(flash.success, { duration: 2000 });
+        }
     }, [flash?.success]);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
-            if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+            if (
+                dropdownRef.current &&
+                !dropdownRef.current.contains(e.target as Node)
+            ) {
                 setDropdownOpen(false);
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
 
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () =>
+            document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
     const fullName = auth?.user?.name ?? '';
@@ -45,11 +57,16 @@ toast.success(flash.success, { duration: 2000 });
             <header className="border-b border-border/60">
                 <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
                     {/* Logo */}
-                    <Link href="/employee/my-flights" className="flex items-center gap-2">
+                    <Link
+                        href="/employee/my-flights"
+                        className="flex items-center gap-2"
+                    >
                         <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
                             <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
-                        <span className="text-[15px] font-semibold">SkyAir</span>
+                        <span className="text-[15px] font-semibold">
+                            SkyAir
+                        </span>
                     </Link>
 
                     {/* Right side: nav + bell + avatar */}
@@ -80,17 +97,22 @@ toast.success(flash.success, { duration: 2000 });
                             </button>
 
                             {dropdownOpen && (
-                                <div className="absolute right-0 top-10 z-50 w-52 rounded-lg border border-border bg-background shadow-md">
+                                <div className="absolute top-10 right-0 z-50 w-52 rounded-lg border border-border bg-background shadow-md">
                                     <div className="border-b border-border px-4 py-3">
-                                        <p className="text-sm font-semibold">{fullName}</p>
+                                        <p className="text-sm font-semibold">
+                                            {fullName}
+                                        </p>
                                         <p className="text-xs text-muted-foreground">
-                                            {(auth?.user as { email?: string })?.email ?? ''}
+                                            {(auth?.user as { email?: string })
+                                                ?.email ?? ''}
                                         </p>
                                     </div>
                                     <div className="p-1">
                                         <Link
                                             href="/employee/profile"
-                                            onClick={() => setDropdownOpen(false)}
+                                            onClick={() =>
+                                                setDropdownOpen(false)
+                                            }
                                             className="flex w-full items-center rounded-md px-3 py-2 text-sm hover:bg-muted"
                                         >
                                             Izmeni profil
