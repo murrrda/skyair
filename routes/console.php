@@ -18,6 +18,10 @@ Schedule::command('reservations:cancel-expired')
     ->hourly()
     ->withoutOverlapping();
 
+Schedule::command('reservations:mark-used')
+    ->hourly()
+    ->withoutOverlapping();
+
 Schedule::job(new CleanupDraftTickets)
     ->hourly()
     ->withoutOverlapping();

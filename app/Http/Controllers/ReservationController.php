@@ -47,9 +47,6 @@ class ReservationController extends Controller
                 };
 
                 $isPast = $flight?->expected_takeoff?->isPast() ?? false;
-                if ($isPast && $status === 'placena') {
-                    $status = 'iskoriscena';
-                }
 
                 $ticketClass = $ticket ? TicketClass::find($ticket->ticket_class_id) : null;
                 $className = $ticketClass?->name ?? ($ticket ? $this->fallbackClassName($ticket->ticket_class_id) : '');
@@ -390,11 +387,6 @@ class ReservationController extends Controller
             'completed' => 'iskoriscena',
             default => 'kreirana',
         };
-
-        $isPast = $flight?->expected_takeoff?->isPast() ?? false;
-        if ($isPast && $status === 'placena') {
-            $status = 'iskoriscena';
-        }
 
         $timeline = $reservation->states->sortBy('created_at')->map(function (ReservationState $s) {
             $title = match ($s->status) {
