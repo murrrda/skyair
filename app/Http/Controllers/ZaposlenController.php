@@ -24,7 +24,7 @@ class ZaposlenController extends Controller
         ]);
     }
 
-    public function store(Request $request, CreateNewUser $creator)
+    public function store(Request $request, CreateNewUser $creator, ZaposlenService $service)
     {
         Gate::authorize('is-admin');
 
@@ -70,9 +70,11 @@ class ZaposlenController extends Controller
             'status' => $validated['status'],
         ]);
 
+        $service->syncDispatcherRecord($zaposlen);
+
         $zaposlen->tipoviUgovora()->attach($validated['tip_ugovora_id'], [
             'datum_potpisivanja' => $validated['datum_potpisivanja'],
-            'datum_isteka' => $validated['datum_isteka'],
+            'datum_isteka' => $validated['datum_isteka'] ?? null,
             'napomena' => $validated['napomena'] ?? null,
             'is_active' => true,
         ]);
@@ -140,7 +142,7 @@ class ZaposlenController extends Controller
         ]);
     }
 
-    public function update(Request $request, Zaposlen $employee)
+    public function update(Request $request, Zaposlen $employee, ZaposlenService $service)
     {
         Gate::authorize('is-admin');
 
@@ -186,6 +188,8 @@ class ZaposlenController extends Controller
             'role' => $validated['role'],
             'datum_zaposlenja' => $validated['datum_zaposlenja'],
         ]);
+
+        $service->syncDispatcherRecord($employee);
 
         // Keep the full contract history but ensure exactly one is active.
         DB::table('ugovori')
