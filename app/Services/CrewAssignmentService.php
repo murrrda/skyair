@@ -128,10 +128,8 @@ class CrewAssignmentService
                             });
                     });
             })
-            // Prefer candidates whose primary role matches the seat, so a
-            // captain is only used as co-pilot when no co-pilot is available.
-            ->orderByRaw('CASE WHEN role = ? THEN 0 ELSE 1 END', [$roleCode])
-            // Needed to weigh each candidate's rolling weekly flight hours.
+            // Load each candidate's assignments so we can weigh both the weekly
+            // cap and their total accumulated flight hours.
             ->with(['assignments' => fn ($q) => $q->where('status', '!=', 'cancelled')->with('flight')])
             ->get();
 
@@ -154,6 +152,12 @@ class CrewAssignmentService
 
                 return ($scheduled + $newDuration) <= self::MAX_WEEKLY_FLIGHT_HOURS;
             })
+            // Distribute load evenly: among the fit candidates, take those with
+            // the fewest accumulated flight hours first. Role match stays the
+            // primary key (a captain fills a co-pilot seat only as a fallback),
+            // with total flight hours as the tie-breaker within each group.
+            ->sortBy(fn (Zaposlen $zaposlen) => $this->accumulatedFlightHours($zaposlen, $flight))
+            ->sortBy(fn (Zaposlen $zaposlen) => $zaposlen->role === $roleCode ? 0 : 1)
             ->values();
     }
 
@@ -163,5 +167,17 @@ class CrewAssignmentService
     private function flightHours(Flight $flight): float
     {
         return $flight->expected_takeoff->diffInMinutes($flight->expected_arrival) / 60;
+    }
+
+    /**
+     * Total flight hours an employee has already accumulated across their
+     * (non-cancelled) assignments, used to favour the least-loaded crew.
+     */
+    private function accumulatedFlightHours(Zaposlen $zaposlen, Flight $excluding): float
+    {
+        return $zaposlen->assignments
+            ->pluck('flight')
+            ->filter(fn (?Flight $f) => $f && $f->id !== $excluding->id && $f->status !== 'cancelled')
+            ->sum(fn (Flight $f) => $this->flightHours($f));
     }
 }
