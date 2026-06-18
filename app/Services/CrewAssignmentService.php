@@ -93,8 +93,8 @@ class CrewAssignmentService
     }
 
     /**
-     * Active employees who may fill the given seat, are qualified, and are
-     * available for the flight's time window.
+     * Active employees who may fill the given seat, are qualified, are not on
+     * a risk break, and are available for the flight's time window.
      *
      * @return Collection<int, Zaposlen>
      */
@@ -126,6 +126,16 @@ class CrewAssignmentService
                                     ->where('expected_takeoff', '<', $restEnd)
                                     ->where('expected_arrival', '>', $restStart);
                             });
+                    });
+            })
+            // Not on a break: exclude anyone flagged risky whose mandated risk
+            // period covers the flight's date (an open-ended period has no end).
+            ->whereDoesntHave('periodiRizika', function ($q) use ($flight) {
+                $flightDate = $flight->expected_takeoff->toDateString();
+                $q->where('datum_pocetka', '<=', $flightDate)
+                    ->where(function ($inner) use ($flightDate) {
+                        $inner->whereNull('datum_kraja')
+                            ->orWhere('datum_kraja', '>=', $flightDate);
                     });
             })
             // Load each candidate's assignments so we can weigh both the weekly
