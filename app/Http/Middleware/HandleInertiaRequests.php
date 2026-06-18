@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\User;
+use App\Services\RiskOverviewService;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -56,6 +57,7 @@ class HandleInertiaRequests extends Middleware
                     'created_at' => $n->created_at?->toIso8601String(),
                 ]),
             ] : ['unread_count' => 0, 'items' => []],
+            'riskAlert' => fn () => $this->riskAlert($user),
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
@@ -65,6 +67,33 @@ class HandleInertiaRequests extends Middleware
                 'draft_validation' => fn () => $request->session()->get('draft_validation'),
             ],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * Synthetic "you're on a pause" notification shown in the bell for an
+     * employee with an active incident-driven risk period. Returns null
+     * otherwise. This intentionally bypasses the DB notification pipeline.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function riskAlert(?User $user): ?array
+    {
+        if ($user === null || $user->zaposlen === null) {
+            return null;
+        }
+
+        $break = app(RiskOverviewService::class)->activeBreak($user->zaposlen);
+
+        if ($break === null) {
+            return null;
+        }
+
+        return [
+            'from' => $break->datum_pocetka?->format('d.m.'),
+            'to' => $break->datum_kraja?->format('d.m.Y.'),
+            'created_at' => $break->created_at?->toIso8601String(),
+            'url' => '/employee/risk',
         ];
     }
 

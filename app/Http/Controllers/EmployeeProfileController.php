@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Dodeljen;
 use App\Models\Flight;
+use App\Services\RiskOverviewService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
@@ -139,6 +140,16 @@ class EmployeeProfileController extends Controller
         return Inertia::render('employee/trainings', [
             'trainings' => $trainings,
         ]);
+    }
+
+    public function myRisk(Request $request, RiskOverviewService $risk)
+    {
+        $employee = $request->user()->zaposlen;
+        $break = $risk->activeBreak($employee);
+
+        abort_if($break === null, 404);
+
+        return Inertia::render('employee/risk', $risk->overview($employee, $break));
     }
 
     public function edit(Request $request)

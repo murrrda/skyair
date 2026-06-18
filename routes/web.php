@@ -166,6 +166,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/my-flights', [EmployeeProfileController::class, 'myFlights'])->name('my-flights');
         Route::get('/certificates', [EmployeeProfileController::class, 'myCertificates'])->name('certificates');
         Route::get('/trainings', [EmployeeProfileController::class, 'myTrainings'])->name('trainings');
+        Route::get('/risk', [EmployeeProfileController::class, 'myRisk'])->name('risk');
         Route::get('/profile', [EmployeeProfileController::class, 'edit'])->name('profile.edit');
         Route::put('/profile', [EmployeeProfileController::class, 'update'])->name('profile.update');
     });

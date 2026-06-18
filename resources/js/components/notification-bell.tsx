@@ -17,34 +17,42 @@ type NotificationItem = {
     created_at: string | null;
 };
 
+type RiskAlert = {
+    from: string | null;
+    to: string | null;
+    created_at: string | null;
+    url: string;
+};
+
 type SharedProps = {
     auth?: { user?: { id?: number | null } | null };
     notifications?: {
         unread_count: number;
         items: NotificationItem[];
     };
+    riskAlert?: RiskAlert | null;
 };
 
 function formatRelative(iso: string | null): string {
     if (!iso) {
-return '—';
-}
+        return '—';
+    }
 
     const diffMin = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
 
     if (diffMin < 1) {
-return 'sada';
-}
+        return 'sada';
+    }
 
     if (diffMin < 60) {
-return `pre ${diffMin} min`;
-}
+        return `pre ${diffMin} min`;
+    }
 
     const diffH = Math.floor(diffMin / 60);
 
     if (diffH < 24) {
-return `pre ${diffH}h`;
-}
+        return `pre ${diffH}h`;
+    }
 
     const diffD = Math.floor(diffH / 24);
 
@@ -52,10 +60,12 @@ return `pre ${diffH}h`;
 }
 
 export function NotificationBell() {
-    const { auth, notifications } = usePage<SharedProps>().props;
+    const { auth, notifications, riskAlert } = usePage<SharedProps>().props;
     const userId = auth?.user?.id ?? null;
-    const unread = notifications?.unread_count ?? 0;
+    const baseUnread = notifications?.unread_count ?? 0;
+    const unread = baseUnread + (riskAlert ? 1 : 0);
     const items = notifications?.items ?? [];
+    const hasContent = items.length > 0 || Boolean(riskAlert);
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
@@ -83,17 +93,26 @@ export function NotificationBell() {
         const channelName = `App.Models.User.${userId}`;
         const channel = window.Echo.private(channelName);
 
-        channel.notification((payload: { ticket_number?: string; status_to_label?: string; message?: string }) => {
-            router.reload({ only: ['notifications'] });
+        channel.notification(
+            (payload: {
+                ticket_number?: string;
+                status_to_label?: string;
+                message?: string;
+            }) => {
+                router.reload({ only: ['notifications'] });
 
-            const title = payload.ticket_number
-                ? `Tiket #${payload.ticket_number}`
-                : 'Nova notifikacija';
-            const description = payload.message
-                ?? (payload.status_to_label ? `Novi status: ${payload.status_to_label}` : '');
+                const title = payload.ticket_number
+                    ? `Tiket #${payload.ticket_number}`
+                    : 'Nova notifikacija';
+                const description =
+                    payload.message ??
+                    (payload.status_to_label
+                        ? `Novi status: ${payload.status_to_label}`
+                        : '');
 
-            toast(title, { description });
-        });
+                toast(title, { description });
+            },
+        );
 
         return () => {
             window.Echo.leave(channelName);
@@ -127,7 +146,9 @@ export function NotificationBell() {
             {open && (
                 <div className="absolute top-12 right-0 z-50 w-[360px] overflow-hidden rounded-xl border border-border bg-card shadow-lg">
                     <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                        <div className="text-sm font-semibold">Notifikacije</div>
+                        <div className="text-sm font-semibold">
+                            Notifikacije
+                        </div>
                         {unread > 0 && (
                             <button
                                 type="button"
@@ -140,12 +161,45 @@ export function NotificationBell() {
                         )}
                     </div>
 
-                    {items.length === 0 ? (
+                    {!hasContent ? (
                         <div className="px-4 py-10 text-center text-sm text-muted-foreground">
                             Nema notifikacija.
                         </div>
                     ) : (
                         <ul className="max-h-[420px] divide-y divide-border overflow-auto">
+                            {riskAlert && (
+                                <li className="bg-[#fcebeb]/40">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setOpen(false);
+                                            router.visit(riskAlert.url);
+                                        }}
+                                        className="flex w-full items-start gap-3 px-4 py-3 text-left transition hover:bg-[#fcebeb]/70"
+                                    >
+                                        <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-[#fcebeb] text-base">
+                                            ⚠️
+                                        </span>
+                                        <div className="flex-1">
+                                            <div className="text-[13px] leading-tight font-bold">
+                                                Označen si kao rizičan
+                                            </div>
+                                            <div className="mt-1 text-[12px] leading-snug text-muted-foreground">
+                                                Sistem te je stavio na pauzu od{' '}
+                                                {riskAlert.from} do{' '}
+                                                {riskAlert.to} zbog prekoračenog
+                                                broja incidenata.
+                                            </div>
+                                            <div className="mt-1 text-[11px] text-muted-foreground">
+                                                {formatRelative(
+                                                    riskAlert.created_at,
+                                                )}
+                                            </div>
+                                        </div>
+                                        <span className="mt-1.5 size-2 shrink-0 rounded-full bg-[#a32d2d]" />
+                                    </button>
+                                </li>
+                            )}
                             {items.map((n) => {
                                 const isUnread = !n.read_at;
 
@@ -154,7 +208,9 @@ export function NotificationBell() {
                                         key={n.id}
                                         className={
                                             'flex items-start gap-3 px-4 py-3 transition ' +
-                                            (isUnread ? 'bg-[#1a56db]/5 dark:bg-[#7eb1f5]/5' : '')
+                                            (isUnread
+                                                ? 'bg-[#1a56db]/5 dark:bg-[#7eb1f5]/5'
+                                                : '')
                                         }
                                     >
                                         {isUnread && (
