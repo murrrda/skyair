@@ -103,7 +103,7 @@ class DispatcherFlightController extends Controller
 
     public function show(Flight $flight): Response
     {
-        $flight->load(['route.startingAirport', 'route.landingAirport', 'plane', 'routeChanges.originalRoute', 'routeChanges.newRoute', 'planeChanges.originalPlane', 'planeChanges.newPlane', 'failures']);
+        $flight->load(['route.startingAirport', 'route.landingAirport', 'plane', 'routeChanges.originalRoute', 'routeChanges.newRoute', 'planeChanges.originalPlane', 'planeChanges.newPlane', 'failures', 'crewAssignments.zaposlen.user', 'crewAssignments.uloga']);
 
         return Inertia::render('dispatcher/detalji-leta', [
             'flight' => $this->serializeDetail($flight),
@@ -335,6 +335,27 @@ class DispatcherFlightController extends Controller
             'status' => $f->status,
             'report_time' => $f->report_time?->format('d.m.Y H:i'),
         ])->toArray();
+
+        $roleOrder = ['pilot' => 0, 'co_pilot' => 1, 'cabin_crew' => 2];
+        $base['crew_status'] = $flight->crew_status;
+        $base['crew'] = $flight->crewAssignments
+            ->sortBy(fn ($a) => $roleOrder[$a->uloga?->code] ?? 9)
+            ->values()
+            ->map(function ($a) {
+                $user = $a->zaposlen?->user;
+                $name = trim(($user?->first_name ?? '').' '.($user?->last_name ?? ''));
+
+                return [
+                    'id' => $a->id,
+                    'user_id' => $a->zaposlen_user_id,
+                    'name' => $name !== '' ? $name : 'Zaposleni #'.$a->zaposlen_user_id,
+                    'email' => $user?->email,
+                    'role' => $a->uloga?->naziv ?? $a->uloga?->code ?? '—',
+                    'role_code' => $a->uloga?->code,
+                    'status' => $a->status,
+                ];
+            })
+            ->toArray();
 
         return $base;
     }
