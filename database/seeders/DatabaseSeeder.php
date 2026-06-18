@@ -28,5 +28,6 @@ class DatabaseSeeder extends Seeder
         $this->call(SeverityLevelSeeder::class);
         $this->call(RazlogSeeder::class);
         $this->call(UlogaSeeder::class);
+        $this->call(IncidentSeeder::class);
     }
 }

@@ -147,7 +147,7 @@ export default function RizicniIndex({ employees, meta }: Props) {
                                     href={`/admin/incidenti/rizicni/${e.user_id}`}
                                     className="rounded-lg border border-[#d3d1c7] bg-white px-3 py-1.5 text-xs text-[#2c2c2a] transition hover:bg-muted"
                                 >
-                                    Pregled incidenata →
+                                    Pregled zaposlenog →
                                 </Link>
                             </div>
                         </div>
