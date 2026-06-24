@@ -25,9 +25,18 @@ type Flight = {
 
 type FormData = {
     airport_id: string;
+    reason_type: string;
     description: string;
     seriousness_level: string;
 };
+
+const reasonTypes = [
+    { value: 'malfunction', label: 'Kvar aviona' },
+    { value: 'weather', label: 'Vremenske nepogode' },
+    { value: 'medical', label: 'Medicinski razlog' },
+    { value: 'security', label: 'Bezbednosna pretnja' },
+    { value: 'other', label: 'Ostalo' },
+];
 
 type PageProps = {
     flight: Flight;
@@ -38,6 +47,7 @@ export default function PrinudnoSletanje() {
     const { flight, airports } = usePage<PageProps>().props;
     const { data, setData, post, processing, errors } = useForm<FormData>({
         airport_id: '',
+        reason_type: 'malfunction',
         description: '',
         seriousness_level: '3',
     });
@@ -74,7 +84,8 @@ export default function PrinudnoSletanje() {
                     </div>
 
                     <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
-                        Izdavanje naloga za prinudno sletanje će odmah promeniti status leta i evidentirati kvar aviona.
+                        Izdavanje naloga za prinudno sletanje će odmah promeniti status leta.
+                        {data.reason_type === 'malfunction' && ' Avion će biti označen za servis.'}
                     </div>
 
                     <form onSubmit={handleSubmit}>
@@ -104,11 +115,27 @@ export default function PrinudnoSletanje() {
 
                             <section className="rounded-xl border border-border bg-card p-6">
                                 <h2 className="mb-5 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                                    Detalji kvara
+                                    Detalji prinudnog sletanja
                                 </h2>
                                 <div className="space-y-4">
                                     <div className="space-y-1.5">
-                                        <Label className="text-xs font-medium">Ozbiljnost kvara (1–5) *</Label>
+                                        <Label className="text-xs font-medium">Razlog *</Label>
+                                        <select
+                                            value={data.reason_type}
+                                            onChange={(e) => setData('reason_type', e.target.value)}
+                                            className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                            required
+                                        >
+                                            {reasonTypes.map((r) => (
+                                                <option key={r.value} value={r.value}>
+                                                    {r.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError message={errors.reason_type} />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs font-medium">Ozbiljnost situacije (1–5) *</Label>
                                         <Input
                                             type="number"
                                             value={data.seriousness_level}
@@ -121,12 +148,12 @@ export default function PrinudnoSletanje() {
                                         <InputError message={errors.seriousness_level} />
                                     </div>
                                     <div className="space-y-1.5">
-                                        <Label className="text-xs font-medium">Opis kvara / razlog *</Label>
+                                        <Label className="text-xs font-medium">Opis situacije *</Label>
                                         <textarea
                                             value={data.description}
                                             onChange={(e) => setData('description', e.target.value)}
                                             className="min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                                            placeholder="Opišite kvar ili razlog za prinudno sletanje…"
+                                            placeholder="Opišite razlog za prinudno sletanje…"
                                             required
                                         />
                                         <InputError message={errors.description} />

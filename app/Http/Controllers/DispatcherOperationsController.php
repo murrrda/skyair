@@ -88,26 +88,37 @@ class DispatcherOperationsController extends Controller
     {
         $validated = $request->validate([
             'airport_id' => ['required', 'exists:airports,id'],
+            'reason_type' => ['required', 'string', 'in:malfunction,weather,medical,security,other'],
             'description' => ['required', 'string', 'max:2000'],
             'seriousness_level' => ['required', 'integer', 'min:1', 'max:5'],
         ]);
 
-        DB::transaction(function () use ($flight, $validated) {
-            Failure::create([
-                'plane_id' => $flight->plane_id,
-                'flight_id' => $flight->id,
-                'report_time' => now(),
-                'description' => $validated['description'],
-                'seriousness_level' => $validated['seriousness_level'],
-                'status' => 'waiting_for_service',
-            ]);
+        $isMalfunction = $validated['reason_type'] === 'malfunction';
 
-            Plane::where('id', $flight->plane_id)->update(['status' => 'in_service']);
+        DB::transaction(function () use ($flight, $validated, $isMalfunction) {
+            if ($isMalfunction) {
+                Failure::create([
+                    'plane_id' => $flight->plane_id,
+                    'flight_id' => $flight->id,
+                    'report_time' => now(),
+                    'description' => $validated['description'],
+                    'seriousness_level' => $validated['seriousness_level'],
+                    'status' => 'waiting_for_service',
+                ]);
+
+                Plane::where('id', $flight->plane_id)->update(['status' => 'in_service']);
+            }
+
             $flight->update(['status' => 'emergency_landing']);
         });
 
+        $message = 'Nalog za prinudno sletanje je izdat.';
+        if ($isMalfunction) {
+            $message .= ' Avion je označen za servis.';
+        }
+
         return redirect()->route('dispatcher.index')
-            ->with('success', 'Nalog za prinudno sletanje je izdat. Avion je označen za servis.');
+            ->with('success', $message);
     }
 
     public function replacePlane(Flight $flight): Response

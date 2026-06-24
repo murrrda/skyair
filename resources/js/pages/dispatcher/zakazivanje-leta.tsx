@@ -56,6 +56,8 @@ export default function ZakazivanjeLeta() {
     const [suggestions, setSuggestions] = useState<SuggestedPlane[]>([]);
     const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
+    const minDateTime = formatDatetimeLocal(new Date());
+
     async function fetchSuggestionsFor(takeoffVal: string, arrivalVal: string) {
         if (!takeoffVal || !arrivalVal) {
 return;
@@ -179,6 +181,7 @@ return;
                                             type="datetime-local"
                                             value={data.expected_takeoff}
                                             onChange={(e) => handleTakeoffChange(e.target.value)}
+                                            min={minDateTime}
                                             required
                                         />
                                         <InputError message={errors.expected_takeoff} />
@@ -189,6 +192,7 @@ return;
                                             type="datetime-local"
                                             value={data.expected_arrival}
                                             onChange={(e) => handleArrivalChange(e.target.value)}
+                                            min={data.expected_takeoff || minDateTime}
                                             required
                                         />
                                         <InputError message={errors.expected_arrival} />
