@@ -21,6 +21,7 @@ use App\Http\Controllers\RiskyEmployeeController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\StatisticsController;
+use App\Http\Controllers\SupportAnalyticsController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
@@ -94,6 +95,8 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::post('/servisi/{service}/zavrsi', [ServiceController::class, 'complete'])->name('servisi.complete');
 
     Route::get('/statistika', [StatisticsController::class, 'index'])->name('statistika.index');
+
+    Route::get('/podrska/analytics', [SupportAnalyticsController::class, 'index'])->name('podrska.analytics');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 
