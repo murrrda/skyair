@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Map, Plane, Tag, Ticket, Users } from 'lucide-react';
+import { BarChart3, Map, Plane, Tag, Ticket, Users } from 'lucide-react';
 
 const sections = [
     {
@@ -37,6 +37,14 @@ const sections = [
         href: '/admin/kategorije',
         icon: Tag,
     },
+    {
+        key: 'statistika',
+        title: 'STATISTIKA FLOTE',
+        description:
+            'Iskorišćenost flote, letovi po avionu, servisi i izmene plana leta',
+        href: '/admin/statistika',
+        icon: BarChart3,
+    },
 ];
 
 export default function AdminIndex() {
@@ -46,8 +54,12 @@ export default function AdminIndex() {
             <div className="flex flex-1 items-center justify-center py-12">
                 <div className="w-full max-w-3xl">
                     <div className="mb-10 text-center">
-                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Admin panel</h1>
-                        <p className="mt-3 text-muted-foreground">Odaberite sekciju kojoj želite da pristupite.</p>
+                        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                            Admin panel
+                        </h1>
+                        <p className="mt-3 text-muted-foreground">
+                            Odaberite sekciju kojoj želite da pristupite.
+                        </p>
                     </div>
 
                     <div className="grid gap-6 sm:grid-cols-2">
@@ -58,13 +70,17 @@ export default function AdminIndex() {
                                 <Link
                                     key={section.key}
                                     href={section.href}
-                                    className="group flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition hover:-translate-y-1 hover:border-primary hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                    className="group flex flex-col items-center justify-center rounded-xl border border-border bg-card p-8 text-center shadow-sm transition hover:-translate-y-1 hover:border-primary hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                 >
                                     <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary transition group-hover:bg-primary group-hover:text-primary-foreground">
                                         <Icon className="h-7 w-7" />
                                     </span>
-                                    <h2 className="text-lg font-semibold tracking-wide">{section.title}</h2>
-                                    <p className="mt-2 text-sm text-muted-foreground">{section.description}</p>
+                                    <h2 className="text-lg font-semibold tracking-wide">
+                                        {section.title}
+                                    </h2>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {section.description}
+                                    </p>
                                 </Link>
                             );
                         })}

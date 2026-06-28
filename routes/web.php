@@ -20,6 +20,7 @@ use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\RiskyEmployeeController;
 use App\Http\Controllers\RouteController;
 use App\Http\Controllers\ServiceController;
+use App\Http\Controllers\StatisticsController;
 use App\Http\Controllers\SupportTicketController;
 use App\Http\Controllers\ZaposlenController;
 use Illuminate\Support\Facades\Route;
@@ -91,6 +92,8 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::post('/flota/{plane}/servisi', [ServiceController::class, 'planeStore'])->name('flota.servisi.store');
     Route::get('/servisi/{service}', [ServiceController::class, 'show'])->name('servisi.show');
     Route::post('/servisi/{service}/zavrsi', [ServiceController::class, 'complete'])->name('servisi.complete');
+
+    Route::get('/statistika', [StatisticsController::class, 'index'])->name('statistika.index');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 
