@@ -8,8 +8,13 @@ import {
     RefreshCw,
     TicketCheck,
     TicketX,
+    Timer,
+    TrendingDown,
+    TrendingUp,
 } from 'lucide-react';
 import { useState } from 'react';
+import OutcomeDonutChart from '@/components/support/OutcomeDonutChart';
+import ResolutionTimeGroupedBarChart from '@/components/support/ResolutionTimeGroupedBarChart';
 import TicketsByTypeBarChart from '@/components/support/TicketsByTypeBarChart';
 import TypeDistributionPieChart from '@/components/support/TypeDistributionPieChart';
 import { Button } from '@/components/ui/button';
@@ -244,8 +249,22 @@ export default function PodrskaStatistike() {
         );
     }
 
-    const { total_tickets, open_tickets, avg_resolution_minutes, outcome_summary } = analytics;
+    const {
+        total_tickets,
+        open_tickets,
+        avg_resolution_minutes,
+        outcome_summary,
+        previous_period_outcome_summary,
+        resolution_time_by_category,
+    } = analytics;
     const successPct = outcome_summary.success_pct;
+
+    const prevTotal =
+        previous_period_outcome_summary.success_count +
+        previous_period_outcome_summary.partial_count +
+        previous_period_outcome_summary.fail_count;
+    const successDeltaPp =
+        prevTotal > 0 ? successPct - previous_period_outcome_summary.success_pct : null;
 
     return (
         <>
@@ -266,7 +285,7 @@ export default function PodrskaStatistike() {
             <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold tracking-tight">
-                        Praćenje uspješnosti korisničke podrške
+                        Praćenje uspešnosti korisničke podrške
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                         Analitika tiketa za izabrani vremenski period.
@@ -356,13 +375,38 @@ export default function PodrskaStatistike() {
                     value={formatMinutes(avg_resolution_minutes)}
                     hint="Zatvoreni tiketi"
                 />
-                <KpiCard
-                    icon={CheckCircle2}
-                    label="Stopa uspešnosti"
-                    value={`${successPct.toFixed(1)}%`}
-                    hint={`${outcome_summary.success_count} uspešno od ${outcome_summary.success_count + outcome_summary.partial_count + outcome_summary.fail_count} zatvorenih`}
-                    valueCls={successRateBadgeClass(successPct).split(' ')[0]}
-                />
+                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Stopa uspešnosti
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                        <div className={`text-2xl font-bold tracking-tight ${successRateBadgeClass(successPct).split(' ')[0]}`}>
+                            {successPct.toFixed(1)}%
+                        </div>
+                        {successDeltaPp !== null && (
+                            <span
+                                className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
+                                    successDeltaPp >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                }`}
+                                title={`Prethodni period: ${previous_period_outcome_summary.success_pct.toFixed(1)}%`}
+                            >
+                                {successDeltaPp >= 0 ? (
+                                    <TrendingUp className="h-3.5 w-3.5" />
+                                ) : (
+                                    <TrendingDown className="h-3.5 w-3.5" />
+                                )}
+                                {successDeltaPp >= 0 ? '+' : '−'}
+                                {Math.abs(successDeltaPp).toFixed(1)} pp
+                            </span>
+                        )}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                        {outcome_summary.success_count} uspešno od{' '}
+                        {outcome_summary.success_count + outcome_summary.partial_count + outcome_summary.fail_count}{' '}
+                        zatvorenih
+                    </div>
+                </div>
             </div>
 
             {/* Charts — SCRUM-170 */}
@@ -402,8 +446,45 @@ export default function PodrskaStatistike() {
                 </section>
             </div>
 
+            {/* Charts — SCRUM-171 */}
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <Timer className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Vreme rešavanja po tipu problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Min, prosek i max vreme do zatvaranja po kategoriji
+                            </p>
+                        </div>
+                    </div>
+                    <ResolutionTimeGroupedBarChart data={resolution_time_by_category} />
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <CheckCircle2 className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Ishod tiketa (stopa uspešnosti)
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Udio uspešno, delimično i neuspešno rešenih tiketa
+                            </p>
+                        </div>
+                    </div>
+                    <OutcomeDonutChart data={outcome_summary} />
+                </section>
+            </div>
+
             {/* Slot for subsequent chart stories */}
-            <div id="support-charts-area-2" />
+            <div id="support-charts-area-3" />
         </>
     );
 }
