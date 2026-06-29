@@ -5,6 +5,8 @@ import {
     CalendarDays,
     CheckCircle2,
     Clock,
+    FileDown,
+    Loader2,
     Plane,
     PieChart as PieChartIcon,
     RefreshCw,
@@ -253,6 +255,32 @@ export default function PodrskaStatistike() {
         );
     }
 
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    function downloadPdf() {
+        if (isGenerating) {
+            return;
+        }
+
+        setIsGenerating(true);
+
+        const url =
+            '/admin/podrska/statistike/pdf?' +
+            new URLSearchParams({
+                date_from: period.date_from,
+                date_to: period.date_to,
+            }).toString();
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.setTimeout(() => setIsGenerating(false), 1500);
+    }
+
     const {
         total_tickets,
         open_tickets,
@@ -297,10 +325,29 @@ export default function PodrskaStatistike() {
                         Analitika tiketa za izabrani vremenski period.
                     </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={refresh}>
-                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    Osveži podatke
-                </Button>
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={refresh}>
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                        Osveži podatke
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={downloadPdf}
+                        disabled={isGenerating}
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                Generisanje...
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                                Generiši PDF izveštaj
+                            </>
+                        )}
+                    </Button>
+                </div>
             </div>
 
             {/* Date filter */}
