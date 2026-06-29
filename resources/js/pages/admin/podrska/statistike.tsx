@@ -1,13 +1,17 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    BarChart3,
     CalendarDays,
     CheckCircle2,
     Clock,
+    PieChart as PieChartIcon,
     RefreshCw,
     TicketCheck,
     TicketX,
 } from 'lucide-react';
 import { useState } from 'react';
+import TicketsByTypeBarChart from '@/components/support/TicketsByTypeBarChart';
+import TypeDistributionPieChart from '@/components/support/TypeDistributionPieChart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,12 +57,14 @@ function today(): string {
 function daysAgo(n: number): string {
     const d = new Date();
     d.setDate(d.getDate() - n);
+
     return toDateStr(d);
 }
 
 function startOfQuarter(): string {
     const d = new Date();
     const m = Math.floor(d.getMonth() / 3) * 3;
+
     return toDateStr(new Date(d.getFullYear(), m, 1));
 }
 
@@ -70,6 +76,7 @@ type Preset = '7d' | '30d' | 'quarter' | 'year' | 'custom';
 
 function presetRange(p: Preset): [string, string] {
     const t = today();
+
     switch (p) {
         case '7d':      return [daysAgo(6), t];
         case '30d':     return [daysAgo(29), t];
@@ -81,28 +88,60 @@ function presetRange(p: Preset): [string, string] {
 
 function detectPreset(from: string, to: string): Preset {
     const t = today();
-    if (to !== t) return 'custom';
-    if (from === daysAgo(6)) return '7d';
-    if (from === daysAgo(29)) return '30d';
-    if (from === startOfQuarter()) return 'quarter';
-    if (from === startOfYear()) return 'year';
+
+    if (to !== t) {
+return 'custom';
+}
+
+    if (from === daysAgo(6)) {
+return '7d';
+}
+
+    if (from === daysAgo(29)) {
+return '30d';
+}
+
+    if (from === startOfQuarter()) {
+return 'quarter';
+}
+
+    if (from === startOfYear()) {
+return 'year';
+}
+
     return 'custom';
 }
 
 // ─── Format helpers ───────────────────────────────────────────────────────────
 
 function formatMinutes(minutes: number | null): string {
-    if (minutes === null || minutes <= 0) return '—';
+    if (minutes === null || minutes <= 0) {
+return '—';
+}
+
     const h = Math.floor(minutes / 60);
     const m = Math.round(minutes % 60);
-    if (h === 0) return `${m}m`;
-    if (m === 0) return `${h}h`;
+
+    if (h === 0) {
+return `${m}m`;
+}
+
+    if (m === 0) {
+return `${h}h`;
+}
+
     return `${h}h ${m}m`;
 }
 
 function successRateBadgeClass(pct: number): string {
-    if (pct >= 70) return 'text-emerald-600 bg-emerald-50';
-    if (pct >= 40) return 'text-amber-600 bg-amber-50';
+    if (pct >= 70) {
+return 'text-emerald-600 bg-emerald-50';
+}
+
+    if (pct >= 40) {
+return 'text-amber-600 bg-amber-50';
+}
+
     return 'text-red-600 bg-red-50';
 }
 
@@ -185,6 +224,7 @@ export default function PodrskaStatistike() {
 
     function selectPreset(p: Preset) {
         setPreset(p);
+
         if (p !== 'custom') {
             const [from, to] = presetRange(p);
             applyRange(from, to);
@@ -325,8 +365,45 @@ export default function PodrskaStatistike() {
                 />
             </div>
 
-            {/* Chart area — filled by subsequent stories */}
-            <div id="support-charts-area" />
+            {/* Charts — SCRUM-170 */}
+            <div className="grid gap-6 md:grid-cols-2">
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <BarChart3 className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Broj prijava po tipu problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Ukupan broj tiketa po kategoriji u periodu
+                            </p>
+                        </div>
+                    </div>
+                    <TicketsByTypeBarChart data={analytics.tickets_by_category} />
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <PieChartIcon className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Zastupljenost tipova problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Udio svake kategorije u ukupnom broju prijava
+                            </p>
+                        </div>
+                    </div>
+                    <TypeDistributionPieChart data={analytics.tickets_by_category} />
+                </section>
+            </div>
+
+            {/* Slot for subsequent chart stories */}
+            <div id="support-charts-area-2" />
         </>
     );
 }
