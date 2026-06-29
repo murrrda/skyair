@@ -175,8 +175,10 @@ class SupportAnalyticsService
             FROM flights f
             LEFT JOIN routes r ON r.id = f.route_id
             JOIN support_ticket_field_value stfv
-                ON  stfv.value ~ '^[0-9]+$'
-                AND stfv.value::bigint = f.id
+                ON (
+                    stfv.value = f.number
+                    OR (stfv.value ~ '^[0-9]+$' AND stfv.value::bigint = f.id)
+                )
             JOIN category_field cf
                 ON  cf.id = stfv.category_field_id
                 AND cf.reference_table = 'flights'

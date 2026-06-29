@@ -1,9 +1,11 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
+    Activity,
     BarChart3,
     CalendarDays,
     CheckCircle2,
     Clock,
+    Plane,
     PieChart as PieChartIcon,
     RefreshCw,
     TicketCheck,
@@ -16,6 +18,8 @@ import { useState } from 'react';
 import OutcomeDonutChart from '@/components/support/OutcomeDonutChart';
 import ResolutionTimeGroupedBarChart from '@/components/support/ResolutionTimeGroupedBarChart';
 import TicketsByTypeBarChart from '@/components/support/TicketsByTypeBarChart';
+import TicketTrendAreaChart from '@/components/support/TicketTrendAreaChart';
+import TopFlightsTable from '@/components/support/TopFlightsTable';
 import TypeDistributionPieChart from '@/components/support/TypeDistributionPieChart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -256,6 +260,8 @@ export default function PodrskaStatistike() {
         outcome_summary,
         previous_period_outcome_summary,
         resolution_time_by_category,
+        daily_counts,
+        top_flights_by_issues,
     } = analytics;
     const successPct = outcome_summary.success_pct;
 
@@ -361,19 +367,19 @@ export default function PodrskaStatistike() {
                     icon={TicketCheck}
                     label="Ukupno tiketa"
                     value={total_tickets.toLocaleString('sr-RS')}
-                    hint="Svi tiketi u periodu"
+
                 />
                 <KpiCard
                     icon={TicketX}
                     label="Otvoreni tiketi"
                     value={open_tickets.toLocaleString('sr-RS')}
-                    hint="Aktivni (open / in_progress)"
+
                 />
                 <KpiCard
                     icon={Clock}
                     label="Prosečno vreme rešavanja"
                     value={formatMinutes(avg_resolution_minutes)}
-                    hint="Zatvoreni tiketi"
+
                 />
                 <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
                     <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
@@ -438,7 +444,7 @@ export default function PodrskaStatistike() {
                                 Zastupljenost tipova problema
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Udio svake kategorije u ukupnom broju prijava
+                                Udeo svake kategorije u ukupnom broju prijava
                             </p>
                         </div>
                     </div>
@@ -475,7 +481,7 @@ export default function PodrskaStatistike() {
                                 Ishod tiketa (stopa uspešnosti)
                             </h2>
                             <p className="text-sm text-muted-foreground">
-                                Udio uspešno, delimično i neuspešno rešenih tiketa
+                                Udeo uspešno, delimično i neuspešno rešenih tiketa
                             </p>
                         </div>
                     </div>
@@ -483,8 +489,34 @@ export default function PodrskaStatistike() {
                 </section>
             </div>
 
-            {/* Slot for subsequent chart stories */}
-            <div id="support-charts-area-3" />
+            {/* Charts — SCRUM-172 */}
+            <section className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+                <div className="mb-5 flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Activity className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <h2 className="text-base font-semibold tracking-tight">
+                            Trend prijava tiketa
+                        </h2>
+                    </div>
+                </div>
+                <TicketTrendAreaChart data={daily_counts} />
+            </section>
+
+            <section className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+                <div className="mb-5 flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Plane className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <h2 className="text-base font-semibold tracking-tight">
+                            Top 3 letova po broju prijava
+                        </h2>
+                    </div>
+                </div>
+                <TopFlightsTable data={top_flights_by_issues} />
+            </section>
         </>
     );
 }
