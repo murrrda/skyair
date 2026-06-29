@@ -18,6 +18,7 @@ class SupportAnalyticsService
         return [
             'total_tickets' => $this->totalTickets($from, $to),
             'open_tickets' => $this->openTickets($from, $to),
+            'avg_resolution_minutes' => $this->avgResolutionMinutes($from, $to),
             'tickets_by_category' => $this->ticketsByCategory($from, $to),
             'resolution_time_by_category' => $this->resolutionTimeByCategory($from, $to),
             'outcome_summary' => $outcomeSummary,
@@ -25,6 +26,24 @@ class SupportAnalyticsService
             'top_flights_by_issues' => $this->topFlightsByIssues($from, $to),
             'daily_counts' => $this->dailyCounts($from, $to),
         ];
+    }
+
+    private function avgResolutionMinutes(Carbon $from, Carbon $to): ?float
+    {
+        $result = DB::selectOne(
+            <<<'SQL'
+            SELECT ROUND(CAST(
+                AVG(EXTRACT(EPOCH FROM (closed_at - created_at)) / 60)
+            AS NUMERIC), 2) AS avg_minutes
+            FROM support_ticket
+            WHERE created_at BETWEEN ? AND ?
+              AND status = 'closed'
+              AND closed_at IS NOT NULL
+            SQL,
+            [$from, $to],
+        );
+
+        return $result?->avg_minutes !== null ? (float) $result->avg_minutes : null;
     }
 
     private function totalTickets(Carbon $from, Carbon $to): int
