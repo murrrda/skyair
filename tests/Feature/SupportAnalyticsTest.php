@@ -156,4 +156,32 @@ class SupportAnalyticsTest extends TestCase
         $this->assertSame('2026-01-01', $response->json('daily_counts.0.date'));
         $this->assertSame('2026-01-07', $response->json('daily_counts.6.date'));
     }
+
+    public function test_admin_can_download_pdf_report(): void
+    {
+        $admin = $this->makeAdmin();
+        $customer = $this->makeCustomer();
+
+        $this->makeTicket($customer, 'closed', 'success', '2026-06-10 10:00:00');
+        $this->makeTicket($customer, 'closed', 'partial', '2026-06-11 10:00:00');
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/podrska/statistike/pdf?date_from=2026-06-01&date_to=2026-06-30');
+
+        $response->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString(
+            'podrska-izvestaj-2026-06-30.pdf',
+            $response->headers->get('Content-Disposition') ?? '',
+        );
+    }
+
+    public function test_non_admin_cannot_download_pdf_report(): void
+    {
+        $customer = $this->makeCustomer();
+
+        $this->actingAs($customer)
+            ->get('/admin/podrska/statistike/pdf?date_from=2026-06-01&date_to=2026-06-30')
+            ->assertForbidden();
+    }
 }
