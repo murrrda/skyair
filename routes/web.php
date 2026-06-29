@@ -96,6 +96,7 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
 
     Route::get('/statistika', [StatisticsController::class, 'index'])->name('statistika.index');
 
+    Route::get('/podrska/statistike', [SupportAnalyticsController::class, 'dashboard'])->name('podrska.statistike');
     Route::get('/podrska/analytics', [SupportAnalyticsController::class, 'index'])->name('podrska.analytics');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');

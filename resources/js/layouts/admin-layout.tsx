@@ -20,6 +20,7 @@ const NAV_LINKS = [
     { label: 'Incidenti', href: '/admin/incidenti' },
     { label: 'Performanse', href: '/admin/performanse' },
     { label: 'Statistika', href: '/admin/statistika' },
+    { label: 'Korisnička podrška', href: '/admin/podrska/statistike' },
 ];
 
 export default function AdminLayout({
