@@ -1,0 +1,569 @@
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    Activity,
+    BarChart3,
+    CalendarDays,
+    CheckCircle2,
+    Clock,
+    FileDown,
+    Loader2,
+    Plane,
+    PieChart as PieChartIcon,
+    RefreshCw,
+    TicketCheck,
+    TicketX,
+    Timer,
+    TrendingDown,
+    TrendingUp,
+} from 'lucide-react';
+import { useState } from 'react';
+import OutcomeDonutChart from '@/components/support/OutcomeDonutChart';
+import ResolutionTimeGroupedBarChart from '@/components/support/ResolutionTimeGroupedBarChart';
+import TicketsByTypeBarChart from '@/components/support/TicketsByTypeBarChart';
+import TicketTrendAreaChart from '@/components/support/TicketTrendAreaChart';
+import TopFlightsTable from '@/components/support/TopFlightsTable';
+import TypeDistributionPieChart from '@/components/support/TypeDistributionPieChart';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type OutcomeSummary = {
+    success_count: number;
+    partial_count: number;
+    fail_count: number;
+    success_pct: number;
+    partial_pct: number;
+    fail_pct: number;
+};
+
+type Analytics = {
+    total_tickets: number;
+    open_tickets: number;
+    avg_resolution_minutes: number | null;
+    tickets_by_category: { category_id: number; category_name: string; count: number; percentage: number }[];
+    resolution_time_by_category: { category_id: number; category_name: string; avg_minutes: number; min_minutes: number; max_minutes: number }[];
+    outcome_summary: OutcomeSummary;
+    previous_period_outcome_summary: OutcomeSummary;
+    top_flights_by_issues: { flight_id: number; flight_number: string; route_name: string | null; total: number; success: number; partial: number; fail: number }[];
+    daily_counts: { date: string; count: number }[];
+};
+
+type PageProps = {
+    analytics: Analytics;
+    period: { date_from: string; date_to: string };
+};
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function toDateStr(d: Date): string {
+    return d.toISOString().split('T')[0];
+}
+
+function today(): string {
+    return toDateStr(new Date());
+}
+
+function daysAgo(n: number): string {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+
+    return toDateStr(d);
+}
+
+function startOfQuarter(): string {
+    const d = new Date();
+    const m = Math.floor(d.getMonth() / 3) * 3;
+
+    return toDateStr(new Date(d.getFullYear(), m, 1));
+}
+
+function startOfYear(): string {
+    return toDateStr(new Date(new Date().getFullYear(), 0, 1));
+}
+
+type Preset = '7d' | '30d' | 'quarter' | 'year' | 'custom';
+
+function presetRange(p: Preset): [string, string] {
+    const t = today();
+
+    switch (p) {
+        case '7d':      return [daysAgo(6), t];
+        case '30d':     return [daysAgo(29), t];
+        case 'quarter': return [startOfQuarter(), t];
+        case 'year':    return [startOfYear(), t];
+        default:        return [t, t];
+    }
+}
+
+function detectPreset(from: string, to: string): Preset {
+    const t = today();
+
+    if (to !== t) {
+return 'custom';
+}
+
+    if (from === daysAgo(6)) {
+return '7d';
+}
+
+    if (from === daysAgo(29)) {
+return '30d';
+}
+
+    if (from === startOfQuarter()) {
+return 'quarter';
+}
+
+    if (from === startOfYear()) {
+return 'year';
+}
+
+    return 'custom';
+}
+
+// ─── Format helpers ───────────────────────────────────────────────────────────
+
+function formatMinutes(minutes: number | null): string {
+    if (minutes === null || minutes <= 0) {
+return '—';
+}
+
+    const h = Math.floor(minutes / 60);
+    const m = Math.round(minutes % 60);
+
+    if (h === 0) {
+return `${m}m`;
+}
+
+    if (m === 0) {
+return `${h}h`;
+}
+
+    return `${h}h ${m}m`;
+}
+
+function successRateBadgeClass(pct: number): string {
+    if (pct >= 70) {
+return 'text-emerald-600 bg-emerald-50';
+}
+
+    if (pct >= 40) {
+return 'text-amber-600 bg-amber-50';
+}
+
+    return 'text-red-600 bg-red-50';
+}
+
+// ─── KPI Card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({
+    label,
+    value,
+    hint,
+    icon: Icon,
+    valueCls,
+}: {
+    label: string;
+    value: string;
+    hint?: string;
+    icon: typeof TicketCheck;
+    valueCls?: string;
+}) {
+    return (
+        <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <Icon className="h-3.5 w-3.5" />
+                {label}
+            </div>
+            <div className={`mt-2 text-2xl font-bold tracking-tight ${valueCls ?? ''}`}>
+                {value}
+            </div>
+            {hint && (
+                <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+            )}
+        </div>
+    );
+}
+
+// ─── Preset button ────────────────────────────────────────────────────────────
+
+function PresetBtn({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                active
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+            }`}
+        >
+            {children}
+        </button>
+    );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function PodrskaStatistike() {
+    const { props } = usePage<PageProps>();
+    const { analytics, period } = props;
+
+    const [preset, setPreset] = useState<Preset>(() =>
+        detectPreset(period.date_from, period.date_to),
+    );
+    const [customFrom, setCustomFrom] = useState(period.date_from);
+    const [customTo, setCustomTo] = useState(period.date_to);
+
+    function applyRange(from: string, to: string) {
+        router.get(
+            '/admin/podrska/statistike',
+            { date_from: from, date_to: to },
+            { preserveState: true, preserveScroll: true },
+        );
+    }
+
+    function selectPreset(p: Preset) {
+        setPreset(p);
+
+        if (p !== 'custom') {
+            const [from, to] = presetRange(p);
+            applyRange(from, to);
+        }
+    }
+
+    function applyCustom(e: React.FormEvent) {
+        e.preventDefault();
+        applyRange(customFrom, customTo);
+    }
+
+    function refresh() {
+        router.get(
+            '/admin/podrska/statistike',
+            { date_from: period.date_from, date_to: period.date_to },
+            { preserveScroll: true },
+        );
+    }
+
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    function downloadPdf() {
+        if (isGenerating) {
+            return;
+        }
+
+        setIsGenerating(true);
+
+        const url =
+            '/admin/podrska/statistike/pdf?' +
+            new URLSearchParams({
+                date_from: period.date_from,
+                date_to: period.date_to,
+            }).toString();
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.setTimeout(() => setIsGenerating(false), 1500);
+    }
+
+    const {
+        total_tickets,
+        open_tickets,
+        avg_resolution_minutes,
+        outcome_summary,
+        previous_period_outcome_summary,
+        resolution_time_by_category,
+        daily_counts,
+        top_flights_by_issues,
+    } = analytics;
+    const successPct = outcome_summary.success_pct;
+
+    const prevTotal =
+        previous_period_outcome_summary.success_count +
+        previous_period_outcome_summary.partial_count +
+        previous_period_outcome_summary.fail_count;
+    const successDeltaPp =
+        prevTotal > 0 ? successPct - previous_period_outcome_summary.success_pct : null;
+
+    return (
+        <>
+            <Head title="Praćenje podrške" />
+
+            {/* Breadcrumb */}
+            <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
+                <Link href="/admin" className="hover:text-foreground">
+                    Admin
+                </Link>
+                <span>/</span>
+                <span>Korisnička podrška</span>
+                <span>/</span>
+                <span className="font-medium text-foreground">Statistike</span>
+            </div>
+
+            {/* Title row */}
+            <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Praćenje uspešnosti korisničke podrške
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Analitika tiketa za izabrani vremenski period.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={refresh}>
+                        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                        Osveži podatke
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={downloadPdf}
+                        disabled={isGenerating}
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                Generisanje...
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                                Generiši PDF izveštaj
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
+
+            {/* Date filter */}
+            <div className="mb-8 rounded-xl border border-border bg-card p-5 shadow-sm">
+                <div className="flex flex-wrap items-end gap-3">
+                    <div className="flex flex-wrap gap-2">
+                        <PresetBtn active={preset === '7d'} onClick={() => selectPreset('7d')}>
+                            Zadnjih 7 dana
+                        </PresetBtn>
+                        <PresetBtn active={preset === '30d'} onClick={() => selectPreset('30d')}>
+                            Zadnjih 30 dana
+                        </PresetBtn>
+                        <PresetBtn active={preset === 'quarter'} onClick={() => selectPreset('quarter')}>
+                            Ovaj kvartal
+                        </PresetBtn>
+                        <PresetBtn active={preset === 'year'} onClick={() => selectPreset('year')}>
+                            Ova godina
+                        </PresetBtn>
+                        <PresetBtn active={preset === 'custom'} onClick={() => setPreset('custom')}>
+                            <CalendarDays className="mr-1 inline h-3.5 w-3.5" />
+                            Prilagođeno
+                        </PresetBtn>
+                    </div>
+
+                    {preset === 'custom' && (
+                        <form onSubmit={applyCustom} className="flex flex-wrap items-end gap-3">
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="date_from">Od datuma</Label>
+                                <Input
+                                    id="date_from"
+                                    type="date"
+                                    value={customFrom}
+                                    max={customTo}
+                                    onChange={(e) => setCustomFrom(e.target.value)}
+                                    className="w-40"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <Label htmlFor="date_to">Do datuma</Label>
+                                <Input
+                                    id="date_to"
+                                    type="date"
+                                    value={customTo}
+                                    min={customFrom}
+                                    onChange={(e) => setCustomTo(e.target.value)}
+                                    className="w-40"
+                                />
+                            </div>
+                            <Button type="submit" size="sm">
+                                Primeni
+                            </Button>
+                        </form>
+                    )}
+                </div>
+
+                <p className="mt-3 text-xs text-muted-foreground">
+                    Period: {period.date_from} – {period.date_to}
+                </p>
+            </div>
+
+            {/* KPI cards */}
+            <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <KpiCard
+                    icon={TicketCheck}
+                    label="Ukupno tiketa"
+                    value={total_tickets.toLocaleString('sr-RS')}
+
+                />
+                <KpiCard
+                    icon={TicketX}
+                    label="Otvoreni tiketi"
+                    value={open_tickets.toLocaleString('sr-RS')}
+
+                />
+                <KpiCard
+                    icon={Clock}
+                    label="Prosečno vreme rešavanja"
+                    value={formatMinutes(avg_resolution_minutes)}
+
+                />
+                <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+                    <div className="flex items-center gap-2 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Stopa uspešnosti
+                    </div>
+                    <div className="mt-2 flex items-baseline gap-2">
+                        <div className={`text-2xl font-bold tracking-tight ${successRateBadgeClass(successPct).split(' ')[0]}`}>
+                            {successPct.toFixed(1)}%
+                        </div>
+                        {successDeltaPp !== null && (
+                            <span
+                                className={`inline-flex items-center gap-0.5 text-xs font-semibold ${
+                                    successDeltaPp >= 0 ? 'text-emerald-600' : 'text-red-600'
+                                }`}
+                                title={`Prethodni period: ${previous_period_outcome_summary.success_pct.toFixed(1)}%`}
+                            >
+                                {successDeltaPp >= 0 ? (
+                                    <TrendingUp className="h-3.5 w-3.5" />
+                                ) : (
+                                    <TrendingDown className="h-3.5 w-3.5" />
+                                )}
+                                {successDeltaPp >= 0 ? '+' : '−'}
+                                {Math.abs(successDeltaPp).toFixed(1)} pp
+                            </span>
+                        )}
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                        {outcome_summary.success_count} uspešno od{' '}
+                        {outcome_summary.success_count + outcome_summary.partial_count + outcome_summary.fail_count}{' '}
+                        zatvorenih
+                    </div>
+                </div>
+            </div>
+
+            {/* Charts — SCRUM-170 */}
+            <div className="grid gap-6 md:grid-cols-2">
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <BarChart3 className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Broj prijava po tipu problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Ukupan broj tiketa po kategoriji u periodu
+                            </p>
+                        </div>
+                    </div>
+                    <TicketsByTypeBarChart data={analytics.tickets_by_category} />
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <PieChartIcon className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Zastupljenost tipova problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Udeo svake kategorije u ukupnom broju prijava
+                            </p>
+                        </div>
+                    </div>
+                    <TypeDistributionPieChart data={analytics.tickets_by_category} />
+                </section>
+            </div>
+
+            {/* Charts — SCRUM-171 */}
+            <div className="mt-6 grid gap-6 md:grid-cols-2">
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <Timer className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Vreme rešavanja po tipu problema
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Min, prosek i max vreme do zatvaranja po kategoriji
+                            </p>
+                        </div>
+                    </div>
+                    <ResolutionTimeGroupedBarChart data={resolution_time_by_category} />
+                </section>
+
+                <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
+                    <div className="mb-5 flex items-start gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                            <CheckCircle2 className="h-5 w-5" />
+                        </span>
+                        <div>
+                            <h2 className="text-base font-semibold tracking-tight">
+                                Ishod tiketa (stopa uspešnosti)
+                            </h2>
+                            <p className="text-sm text-muted-foreground">
+                                Udeo uspešno, delimično i neuspešno rešenih tiketa
+                            </p>
+                        </div>
+                    </div>
+                    <OutcomeDonutChart data={outcome_summary} />
+                </section>
+            </div>
+
+            {/* Charts — SCRUM-172 */}
+            <section className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+                <div className="mb-5 flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Activity className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <h2 className="text-base font-semibold tracking-tight">
+                            Trend prijava tiketa
+                        </h2>
+                    </div>
+                </div>
+                <TicketTrendAreaChart data={daily_counts} />
+            </section>
+
+            <section className="mt-6 rounded-xl border border-border bg-card p-6 shadow-sm">
+                <div className="mb-5 flex items-start gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Plane className="h-5 w-5" />
+                    </span>
+                    <div>
+                        <h2 className="text-base font-semibold tracking-tight">
+                            Top 3 letova po broju prijava
+                        </h2>
+                    </div>
+                </div>
+                <TopFlightsTable data={top_flights_by_issues} />
+            </section>
+        </>
+    );
+}

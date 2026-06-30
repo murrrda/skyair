@@ -19,9 +19,16 @@ const NAV_LINKS = [
     { label: 'Kategorije tiketa', href: '/admin/kategorije' },
     { label: 'Incidenti', href: '/admin/incidenti' },
     { label: 'Performanse', href: '/admin/performanse' },
+    { label: 'Statistika', href: '/admin/statistika' },
+    { label: 'Korisnička podrška', href: '/admin/podrska/statistike' },
+    { label: 'Prodaja', href: '/admin/prodaja/statistike' },
 ];
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
     const page = usePage();
     const { auth } = page.props as unknown as { auth: Auth };
     const currentUrl = page.url;
@@ -35,7 +42,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                         <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-md bg-white">
                             <AppLogoIcon className="h-full w-full object-contain p-0.5" />
                         </div>
-                        <span className="text-[15px] font-semibold">SkyAir</span>
+                        <span className="text-[15px] font-semibold">
+                            SkyAir
+                        </span>
                     </Link>
 
                     <div className="flex items-center gap-7">
@@ -60,7 +69,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                                     type="button"
                                     className="flex h-8 w-8 items-center justify-center rounded-full bg-[#E6F1FB] text-xs font-semibold text-[#185FA5] outline-none focus-visible:ring-2 focus-visible:ring-ring"
                                 >
-                                    {auth?.user ? getInitials(auth.user.name) : '?'}
+                                    {auth?.user
+                                        ? getInitials(auth.user.name)
+                                        : '?'}
                                 </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-56">

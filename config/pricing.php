@@ -83,4 +83,40 @@ return [
         'prva' => 2.0,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Class seat share
+    |--------------------------------------------------------------------------
+    |
+    | Planes store a single total capacity, not a per-class seat allocation.
+    | Sales analytics needs "total seats for a class", so we split a flight's
+    | capacity across classes by these shares (matched against the lowercased
+    | class name, same as class_multipliers). They should add up to ~1.0.
+    |
+    */
+
+    'class_seat_share' => [
+        'ekonom' => 0.70,
+        'biznis' => 0.20,
+        'prva' => 0.10,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Occupancy extremes
+    |--------------------------------------------------------------------------
+    |
+    | Thresholds for the sales-analytics "high / low occupancy flights" report.
+    | A flight is "highly filled" at or above high_threshold percent and
+    | "under-filled" at or below low_threshold; each ranked table shows at most
+    | `limit` flights.
+    |
+    */
+
+    'occupancy_extremes' => [
+        'high_threshold' => 85,
+        'low_threshold' => 30,
+        'limit' => 10,
+    ],
+
 ];
