@@ -5,7 +5,6 @@ import {
     Gauge,
     Inbox,
     Loader2,
-    Plane,
     RefreshCw,
     TicketCheck,
     TicketX,
@@ -17,6 +16,7 @@ import type {
     RisingRoute,
 } from '@/components/sales/CancellationAnalyticsSection';
 import OccupancyByClassSection from '@/components/sales/OccupancyByClassSection';
+import OccupancyExtremesSection from '@/components/sales/OccupancyExtremesSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,6 +48,7 @@ type FlightOccupancy = {
     flight_id: number;
     flight_number: string;
     route_name: string | null;
+    date: string;
     capacity: number;
     sold: number;
     occupancy_pct: number;
@@ -65,6 +66,8 @@ type Analytics = {
     cancellation_by_flight: CancellationByFlightRow[];
     rising_cancellations: RisingRoute[];
     occupancy_extremes: {
+        high_threshold: number;
+        low_threshold: number;
         highest: FlightOccupancy[];
         lowest: FlightOccupancy[];
     };
@@ -232,50 +235,6 @@ function PresetBtn({
         >
             {children}
         </button>
-    );
-}
-
-// ─── Chart-section shell (mount point for S3–S5 child charts) ──────────────────
-
-function ChartSection({
-    title,
-    description,
-    icon: Icon,
-    children,
-}: {
-    title: string;
-    description?: string;
-    icon: typeof TicketCheck;
-    children: React.ReactNode;
-}) {
-    return (
-        <section className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <div className="mb-5 flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                    <Icon className="h-5 w-5" />
-                </span>
-                <div>
-                    <h2 className="text-base font-semibold tracking-tight">
-                        {title}
-                    </h2>
-                    {description && (
-                        <p className="text-sm text-muted-foreground">
-                            {description}
-                        </p>
-                    )}
-                </div>
-            </div>
-            {children}
-        </section>
-    );
-}
-
-// Placeholder body until the dedicated chart story (S3–S5) mounts its component here.
-function ChartPlaceholder() {
-    return (
-        <div className="flex h-48 items-center justify-center rounded-lg border border-dashed border-border text-sm text-muted-foreground">
-            Grafikon se dodaje u narednoj iteraciji.
-        </div>
     );
 }
 
@@ -516,14 +475,17 @@ export default function ProdajaStatistike() {
                         rising={analytics.rising_cancellations}
                     />
 
-                    {/* S5 — letovi visoke i niske popunjenosti */}
-                    <ChartSection
-                        icon={Plane}
-                        title="Letovi visoke i niske popunjenosti"
-                        description="Najpopunjeniji i najmanje popunjeni letovi u periodu"
-                    >
-                        <ChartPlaceholder />
-                    </ChartSection>
+                    {/* S5 — letovi visoke i niske popunjenosti (SCRUM-180) */}
+                    <OccupancyExtremesSection
+                        highest={analytics.occupancy_extremes.highest}
+                        lowest={analytics.occupancy_extremes.lowest}
+                        highThreshold={
+                            analytics.occupancy_extremes.high_threshold
+                        }
+                        lowThreshold={
+                            analytics.occupancy_extremes.low_threshold
+                        }
+                    />
                 </div>
             )}
         </>

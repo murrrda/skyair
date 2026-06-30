@@ -66,6 +66,7 @@ class SalesAnalyticsService
                 f.id     AS flight_id,
                 f.number AS flight_number,
                 r.name   AS route_name,
+                f.expected_takeoff::date AS takeoff_date,
                 p.capacity AS capacity,
                 COUNT(ft.id) FILTER (
                     WHERE COALESCE(rs.status, 'pending') <> 'cancelled'
@@ -77,7 +78,7 @@ class SalesAnalyticsService
             LEFT JOIN reservations res ON res.id = ft.reservation_id
             LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
             WHERE f.expected_takeoff BETWEEN ? AND ?
-            GROUP BY f.id, f.number, r.name, p.capacity
+            GROUP BY f.id, f.number, r.name, f.expected_takeoff, p.capacity
             ORDER BY f.expected_takeoff
             SQL,
             [$from, $to],
@@ -91,6 +92,7 @@ class SalesAnalyticsService
                 'flight_id' => (int) $row->flight_id,
                 'flight_number' => $row->flight_number,
                 'route_name' => $row->route_name,
+                'date' => $row->takeoff_date,
                 'capacity' => $capacity,
                 'sold' => $sold,
                 'occupancy_pct' => $capacity > 0 ? min(100.0, round($sold / $capacity * 100, 2)) : 0.0,
@@ -408,22 +410,35 @@ class SalesAnalyticsService
     }
 
     /**
-     * Most- and least-filled flights in the period (flights with seats only).
+     * Highly- and under-filled flights in the period. A flight qualifies as
+     * "high" at/above the configured high_threshold and "low" at/below the
+     * low_threshold (config/pricing.php → occupancy_extremes); each ranked
+     * table is capped at `limit`. The thresholds are returned alongside so the
+     * UI can label them. Only flights with seats are considered.
      *
      * @param  array<int, array<string, mixed>>  $flightOccupancies
-     * @return array{highest: array<int, mixed>, lowest: array<int, mixed>}
+     * @return array{high_threshold: float, low_threshold: float, highest: array<int, mixed>, lowest: array<int, mixed>}
      */
     private function occupancyExtremes(array $flightOccupancies): array
     {
+        $cfg = (array) config('pricing.occupancy_extremes', []);
+        $high = (float) ($cfg['high_threshold'] ?? 85);
+        $low = (float) ($cfg['low_threshold'] ?? 30);
+        $limit = (int) ($cfg['limit'] ?? 10);
+
         $withSeats = array_values(array_filter($flightOccupancies, fn ($f) => $f['capacity'] > 0));
 
-        usort($withSeats, fn ($a, $b) => $b['occupancy_pct'] <=> $a['occupancy_pct']);
+        $highest = array_values(array_filter($withSeats, fn ($f) => $f['occupancy_pct'] >= $high));
+        usort($highest, fn ($a, $b) => $b['occupancy_pct'] <=> $a['occupancy_pct']);
 
-        $limit = 5;
+        $lowest = array_values(array_filter($withSeats, fn ($f) => $f['occupancy_pct'] <= $low));
+        usort($lowest, fn ($a, $b) => $a['occupancy_pct'] <=> $b['occupancy_pct']);
 
         return [
-            'highest' => array_slice($withSeats, 0, $limit),
-            'lowest' => array_slice(array_reverse($withSeats), 0, $limit),
+            'high_threshold' => $high,
+            'low_threshold' => $low,
+            'highest' => array_slice($highest, 0, $limit),
+            'lowest' => array_slice($lowest, 0, $limit),
         ];
     }
 

@@ -101,4 +101,22 @@ return [
         'prva' => 0.10,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Occupancy extremes
+    |--------------------------------------------------------------------------
+    |
+    | Thresholds for the sales-analytics "high / low occupancy flights" report.
+    | A flight is "highly filled" at or above high_threshold percent and
+    | "under-filled" at or below low_threshold; each ranked table shows at most
+    | `limit` flights.
+    |
+    */
+
+    'occupancy_extremes' => [
+        'high_threshold' => 85,
+        'low_threshold' => 30,
+        'limit' => 10,
+    ],
+
 ];

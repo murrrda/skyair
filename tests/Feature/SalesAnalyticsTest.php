@@ -205,9 +205,13 @@ class SalesAnalyticsTest extends TestCase
         $this->assertSame(3, $eko['sold']);
         $this->assertSame(140, $eko['total_seats']);
 
-        // A (3%) is the fullest, B (0%) the emptiest.
-        $this->assertSame($data['flight_a']->id, $json['occupancy_extremes']['highest'][0]['flight_id']);
+        // With default thresholds (≥85% / ≤30%) neither light flight is "high";
+        // both are "low", emptiest first: B (0%) then A (3%).
+        $this->assertSame([], $json['occupancy_extremes']['highest']);
         $this->assertSame($data['flight_b']->id, $json['occupancy_extremes']['lowest'][0]['flight_id']);
+        $this->assertSame($data['flight_a']->id, $json['occupancy_extremes']['lowest'][1]['flight_id']);
+        $this->assertSame(85.0, (float) $json['occupancy_extremes']['high_threshold']);
+        $this->assertSame(30.0, (float) $json['occupancy_extremes']['low_threshold']);
 
         // The single cancellation lands on today's bucket of the zero-filled trend.
         $today = now()->toDateString();
@@ -319,6 +323,50 @@ class SalesAnalyticsTest extends TestCase
         $this->assertSame(4, $risingRow['total_cancelled']);
         $this->assertGreaterThan(0, $risingRow['slope']);
         $this->assertCount(3, $risingRow['points']);
+    }
+
+    public function test_occupancy_extremes_rank_by_configured_thresholds(): void
+    {
+        $admin = $this->makeAdmin();
+        $staff = $this->makeStaff();
+        $customer = $this->makeCustomer();
+        $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
+
+        $today = Carbon::now()->setTime(9, 0);
+        $full = $this->makeFlight($staff, $today, 10);   // 9/10  = 90% → high
+        $mid = $this->makeFlight($staff, $today, 10);    // 5/10  = 50% → neither
+        $empty = $this->makeFlight($staff, $today, 10);  // 1/10  = 10% → low
+
+        $this->addReservation($full, $class, $customer, 'confirmed', 9, 5000);
+        $this->addReservation($mid, $class, $customer, 'confirmed', 5, 5000);
+        $this->addReservation($empty, $class, $customer, 'confirmed', 1, 5000);
+
+        $ext = $this->actingAs($admin)
+            ->getJson('/admin/prodaja/analytics?'.$this->range())
+            ->assertOk()
+            ->assertJsonStructure([
+                'occupancy_extremes' => [
+                    'high_threshold',
+                    'low_threshold',
+                    'highest' => [['flight_id', 'flight_number', 'route_name', 'date', 'capacity', 'sold', 'occupancy_pct']],
+                    'lowest' => [['flight_id', 'flight_number', 'route_name', 'date', 'capacity', 'sold', 'occupancy_pct']],
+                ],
+            ])
+            ->json('occupancy_extremes');
+
+        $highIds = array_column($ext['highest'], 'flight_id');
+        $lowIds = array_column($ext['lowest'], 'flight_id');
+
+        $this->assertContains($full->id, $highIds);     // 90% ≥ 85
+        $this->assertNotContains($mid->id, $highIds);    // 50% is neither
+        $this->assertNotContains($mid->id, $lowIds);
+        $this->assertContains($empty->id, $lowIds);      // 10% ≤ 30
+
+        // Each row carries the departure date and sold/capacity.
+        $fullRow = collect($ext['highest'])->firstWhere('flight_id', $full->id);
+        $this->assertSame(9, $fullRow['sold']);
+        $this->assertSame(10, $fullRow['capacity']);
+        $this->assertSame($today->toDateString(), $fullRow['date']);
     }
 
     public function test_empty_range_returns_zeroed_aggregates(): void
