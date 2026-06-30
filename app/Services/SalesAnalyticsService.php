@@ -22,9 +22,32 @@ class SalesAnalyticsService
         return [
             'kpis' => $this->kpis($from, $to, $flightOccupancies, $cancellation),
             'occupancy_by_class' => $this->occupancyByClass($from, $to),
+            'occupancy_by_class_by_season' => $this->occupancyByClassBySeason($from, $to),
             'cancellation' => $cancellation,
             'cancellation_trend' => $this->cancellationTrend($from, $to),
             'occupancy_extremes' => $this->occupancyExtremes($flightOccupancies),
+        ];
+    }
+
+    /**
+     * Occupancy-by-class split into calendar seasons (leto / zima / van sezone).
+     * A flight's season is decided by its departure month using the very same
+     * config('pricing.season') month sets that PricingService::seasonFactor()
+     * reads — summer months → leto, winter months → zima, everything else →
+     * van sezone — so the three buckets partition the period's flights.
+     *
+     * @return array<string, array<int, array<string, mixed>>>
+     */
+    private function occupancyByClassBySeason(Carbon $from, Carbon $to): array
+    {
+        $summer = array_values(array_map('intval', (array) config('pricing.season.summer_months', [])));
+        $winter = array_values(array_map('intval', (array) config('pricing.season.winter_months', [])));
+        $offSeason = array_values(array_diff(range(1, 12), $summer, $winter));
+
+        return [
+            'leto' => $this->occupancyByClass($from, $to, $summer),
+            'zima' => $this->occupancyByClass($from, $to, $winter),
+            'van_sezone' => $this->occupancyByClass($from, $to, $offSeason),
         ];
     }
 
@@ -108,14 +131,19 @@ class SalesAnalyticsService
     /**
      * Sold vs. total seats per ticket class. Total seats for a class is the
      * summed plane capacity of flights in the period multiplied by the class
-     * seat share from config/pricing.php.
+     * seat share from config/pricing.php. When $months is given, only flights
+     * whose departure month is in that set are counted (used to slice the
+     * breakdown by calendar season).
      *
+     * @param  array<int, int>|null  $months  Restrict to these departure months; null = all.
      * @return array<int, array<string, mixed>>
      */
-    private function occupancyByClass(Carbon $from, Carbon $to): array
+    private function occupancyByClass(Carbon $from, Carbon $to, ?array $months = null): array
     {
+        [$monthSql, $monthBindings] = $this->monthConstraint($months);
+
         $soldRows = DB::select(
-            <<<'SQL'
+            <<<SQL
             SELECT
                 tc.id   AS class_id,
                 tc.name AS class_name,
@@ -124,23 +152,23 @@ class SalesAnalyticsService
                 ) AS sold
             FROM ticket_classes tc
             LEFT JOIN flight_tickets ft ON ft.ticket_class_id = tc.id
-            LEFT JOIN flights f ON f.id = ft.flight_id AND f.expected_takeoff BETWEEN ? AND ?
+            LEFT JOIN flights f ON f.id = ft.flight_id AND f.expected_takeoff BETWEEN ? AND ?{$monthSql}
             LEFT JOIN reservations res ON res.id = ft.reservation_id
             LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
             GROUP BY tc.id, tc.name
             ORDER BY tc.id
             SQL,
-            [$from, $to],
+            [$from, $to, ...$monthBindings],
         );
 
         $totalCapacity = (int) DB::selectOne(
-            <<<'SQL'
+            <<<SQL
             SELECT COALESCE(SUM(p.capacity), 0) AS total_capacity
             FROM flights f
             JOIN planes p ON p.id = f.plane_id
-            WHERE f.expected_takeoff BETWEEN ? AND ?
+            WHERE f.expected_takeoff BETWEEN ? AND ?{$monthSql}
             SQL,
-            [$from, $to],
+            [$from, $to, ...$monthBindings],
         )->total_capacity;
 
         return array_map(function ($row) use ($totalCapacity) {
@@ -254,5 +282,30 @@ class SalesAnalyticsService
         }
 
         return 0.0;
+    }
+
+    /**
+     * Builds the SQL fragment + bindings that restrict flights to a set of
+     * departure months. null → no restriction; an empty set → match nothing
+     * (so a season with no configured months yields zero rows, not all rows).
+     *
+     * @param  array<int, int>|null  $months
+     * @return array{0: string, 1: array<int, int>}
+     */
+    private function monthConstraint(?array $months): array
+    {
+        if ($months === null) {
+            return ['', []];
+        }
+
+        $months = array_values(array_map('intval', $months));
+
+        if ($months === []) {
+            return [' AND 1 = 0', []];
+        }
+
+        $placeholders = implode(', ', array_fill(0, count($months), '?'));
+
+        return [" AND EXTRACT(MONTH FROM f.expected_takeoff)::int IN ({$placeholders})", $months];
     }
 }

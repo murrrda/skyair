@@ -194,6 +194,51 @@ class SalesAnalyticsTest extends TestCase
         $this->assertSame(1, $todayRow['count']);
     }
 
+    public function test_occupancy_by_class_is_split_into_calendar_seasons(): void
+    {
+        $admin = $this->makeAdmin();
+        $staff = $this->makeStaff();
+        $customer = $this->makeCustomer();
+        $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
+
+        // One flight per calendar season, each on a plane with capacity 100.
+        $summer = $this->makeFlight($staff, Carbon::create(2026, 7, 15, 10), 100); // ljeto
+        $winter = $this->makeFlight($staff, Carbon::create(2026, 1, 15, 10), 100); // zima
+        $off = $this->makeFlight($staff, Carbon::create(2026, 4, 15, 10), 100);    // van sezone
+
+        $this->addReservation($summer, $class, $customer, 'confirmed', 2, 10000);
+        $this->addReservation($winter, $class, $customer, 'confirmed', 1, 10000);
+        $this->addReservation($off, $class, $customer, 'confirmed', 3, 10000);
+
+        $json = $this->actingAs($admin)
+            ->getJson('/admin/prodaja/analytics?date_from=2026-01-01&date_to=2026-12-31')
+            ->assertOk()
+            ->assertJsonStructure([
+                'occupancy_by_class_by_season' => [
+                    'leto' => [['class_id', 'class_name', 'sold', 'total_seats', 'occupancy_pct']],
+                    'zima' => [['class_id', 'class_name', 'sold', 'total_seats', 'occupancy_pct']],
+                    'van_sezone' => [['class_id', 'class_name', 'sold', 'total_seats', 'occupancy_pct']],
+                ],
+            ])
+            ->json();
+
+        $eko = fn (string $season) => collect($json['occupancy_by_class_by_season'][$season])
+            ->firstWhere('class_name', 'Ekonomska');
+
+        // Each season counts only its own flight; total seats = 100 capacity * 0.70 share.
+        $this->assertSame(2, $eko('leto')['sold']);
+        $this->assertSame(70, $eko('leto')['total_seats']);
+        $this->assertSame(1, $eko('zima')['sold']);
+        $this->assertSame(70, $eko('zima')['total_seats']);
+        $this->assertSame(3, $eko('van_sezone')['sold']);
+        $this->assertSame(70, $eko('van_sezone')['total_seats']);
+
+        // The seasons partition the period: the unsplit breakdown is their sum.
+        $ekoAll = collect($json['occupancy_by_class'])->firstWhere('class_name', 'Ekonomska');
+        $this->assertSame(6, $ekoAll['sold']);
+        $this->assertSame(210, $ekoAll['total_seats']);
+    }
+
     public function test_empty_range_returns_zeroed_aggregates(): void
     {
         $admin = $this->makeAdmin();

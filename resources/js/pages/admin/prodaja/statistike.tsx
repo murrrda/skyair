@@ -5,7 +5,6 @@ import {
     Gauge,
     Inbox,
     Loader2,
-    PieChart as PieChartIcon,
     Plane,
     RefreshCw,
     TicketCheck,
@@ -13,6 +12,7 @@ import {
     TrendingDown,
 } from 'lucide-react';
 import { useState } from 'react';
+import OccupancyByClassSection from '@/components/sales/OccupancyByClassSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,6 +52,10 @@ type FlightOccupancy = {
 type Analytics = {
     kpis: Kpis;
     occupancy_by_class: OccupancyByClass[];
+    occupancy_by_class_by_season: Record<
+        'leto' | 'zima' | 'van_sezone',
+        OccupancyByClass[]
+    >;
     cancellation: Cancellation;
     cancellation_trend: { date: string; count: number }[];
     occupancy_extremes: {
@@ -381,7 +385,7 @@ export default function ProdajaStatistike() {
                             active={preset === 'month'}
                             onClick={() => selectPreset('month')}
                         >
-                            Mjesec
+                            Mesec
                         </PresetBtn>
                         <PresetBtn
                             active={preset === 'quarter'}
@@ -470,9 +474,9 @@ export default function ProdajaStatistike() {
                 />
                 <KpiCard
                     icon={Gauge}
-                    label="Prosječna popunjenost"
+                    label="Prosečna popunjenost"
                     value={formatPct(kpis.avg_occupancy_pct)}
-                    hint="Prosjek po letovima u periodu"
+                    hint="Prosek po letovima u periodu"
                 />
             </div>
 
@@ -484,45 +488,38 @@ export default function ProdajaStatistike() {
                         Nema podataka o prodaji za izabrani period.
                     </p>
                     <p className="text-xs text-muted-foreground">
-                        Promijenite vremenski raspon ili osvježite podatke.
+                        Promenite vremenski raspon ili osvežite podatke.
                     </p>
                 </div>
             )}
 
             {/* Chart sections — mount points for S3–S5 child components */}
             {!isEmpty && (
-                <>
-                    <div className="grid gap-6 md:grid-cols-2">
-                        {/* S3 — popunjenost po klasama */}
-                        <ChartSection
-                            icon={PieChartIcon}
-                            title="Popunjenost po klasama"
-                            description="Odnos prodatih i ukupnih sedišta po klasi"
-                        >
-                            <ChartPlaceholder />
-                        </ChartSection>
+                <div className="space-y-6">
+                    {/* S3 — popunjenost po klasama (SCRUM-178) */}
+                    <OccupancyByClassSection
+                        all={analytics.occupancy_by_class}
+                        bySeason={analytics.occupancy_by_class_by_season}
+                    />
 
-                        {/* S4 — trend otkazivanja */}
-                        <ChartSection
-                            icon={TrendingDown}
-                            title="Trend otkazivanja"
-                            description="Broj otkazanih rezervacija kroz vrijeme"
-                        >
-                            <ChartPlaceholder />
-                        </ChartSection>
-                    </div>
+                    {/* S4 — trend otkazivanja */}
+                    <ChartSection
+                        icon={TrendingDown}
+                        title="Trend otkazivanja"
+                        description="Broj otkazanih rezervacija kroz vreme"
+                    >
+                        <ChartPlaceholder />
+                    </ChartSection>
 
                     {/* S5 — letovi visoke i niske popunjenosti */}
-                    <div className="mt-6">
-                        <ChartSection
-                            icon={Plane}
-                            title="Letovi visoke i niske popunjenosti"
-                            description="Najpopunjeniji i najmanje popunjeni letovi u periodu"
-                        >
-                            <ChartPlaceholder />
-                        </ChartSection>
-                    </div>
-                </>
+                    <ChartSection
+                        icon={Plane}
+                        title="Letovi visoke i niske popunjenosti"
+                        description="Najpopunjeniji i najmanje popunjeni letovi u periodu"
+                    >
+                        <ChartPlaceholder />
+                    </ChartSection>
+                </div>
             )}
         </>
     );
