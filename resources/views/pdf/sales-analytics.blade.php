@@ -186,6 +186,8 @@
     $fmtDate = fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('d.m.Y.');
     $n0 = fn ($v) => number_format($v, 0, ',', '.');
     $n1 = fn ($v) => number_format($v, 1, ',', '.');
+    $n2 = fn ($v) => number_format($v, 2, ',', '.');
+    $rising = $analytics['rising_cancellations'] ?? [];
 @endphp
 
 <header>
@@ -351,6 +353,33 @@
                 <tr>
                     <td>{{ $row['label'] }}</td>
                     <td class="num">{{ $row['count'] }}</td>
+                </tr>
+            @endforeach
+        </tbody>
+    </table>
+@endif
+
+{{-- Rastući trend otkazivanja po rutama --}}
+<h2>Rastući trend otkazivanja po rutama</h2>
+@if (count($rising) === 0)
+    <div class="empty">Nema ruta sa rastućim trendom otkazivanja za izabrani period.</div>
+@else
+    <table class="data">
+        <thead>
+            <tr>
+                <th>Ruta</th>
+                <th>Nedavna otkazivanja</th>
+                <th class="num">Ukupno</th>
+                <th class="num">Trend</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($rising as $row)
+                <tr>
+                    <td>{{ $row['route_name'] ?? '-' }}</td>
+                    <td>{{ collect($row['points'])->pluck('count')->implode(' → ') }}</td>
+                    <td class="num">{{ $n0($row['total_cancelled']) }}</td>
+                    <td class="num">▲ {{ $n2($row['slope']) }}</td>
                 </tr>
             @endforeach
         </tbody>
