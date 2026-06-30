@@ -396,6 +396,29 @@ class SalesAnalyticsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_admin_can_download_pdf_report(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->seedScenario();
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/prodaja/statistike/pdf?date_from='.now()->subDays(2)->toDateString().'&date_to='.now()->addDays(2)->toDateString());
+
+        $response->assertOk();
+        $this->assertSame('application/pdf', $response->headers->get('Content-Type'));
+        $this->assertStringContainsString(
+            'prodaja-izvestaj-'.now()->addDays(2)->toDateString().'.pdf',
+            $response->headers->get('Content-Disposition') ?? '',
+        );
+    }
+
+    public function test_non_admin_cannot_download_pdf_report(): void
+    {
+        $this->actingAs($this->makeCustomer())
+            ->get('/admin/prodaja/statistike/pdf?'.$this->range())
+            ->assertForbidden();
+    }
+
     public function test_missing_date_params_returns_422(): void
     {
         $this->actingAs($this->makeAdmin())

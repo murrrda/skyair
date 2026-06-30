@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Banknote,
     CalendarDays,
+    FileDown,
     Gauge,
     Inbox,
     Loader2,
@@ -282,6 +283,32 @@ export default function ProdajaStatistike() {
         applyRange(period.date_from, period.date_to);
     }
 
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    function downloadPdf() {
+        if (isGenerating) {
+            return;
+        }
+
+        setIsGenerating(true);
+
+        const url =
+            '/admin/prodaja/statistike/pdf?' +
+            new URLSearchParams({
+                date_from: period.date_from,
+                date_to: period.date_to,
+            }).toString();
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        window.setTimeout(() => setIsGenerating(false), 1500);
+    }
+
     const { kpis, cancellation } = analytics;
     const isEmpty =
         kpis.tickets_sold === 0 &&
@@ -326,6 +353,23 @@ export default function ProdajaStatistike() {
                             <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                         )}
                         Osveži podatke
+                    </Button>
+                    <Button
+                        size="sm"
+                        onClick={downloadPdf}
+                        disabled={isGenerating}
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                Generisanje...
+                            </>
+                        ) : (
+                            <>
+                                <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                                Generiši PDF izveštaj
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>
