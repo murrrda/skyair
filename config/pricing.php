@@ -83,4 +83,22 @@ return [
         'prva' => 2.0,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Class seat share
+    |--------------------------------------------------------------------------
+    |
+    | Planes store a single total capacity, not a per-class seat allocation.
+    | Sales analytics needs "total seats for a class", so we split a flight's
+    | capacity across classes by these shares (matched against the lowercased
+    | class name, same as class_multipliers). They should add up to ~1.0.
+    |
+    */
+
+    'class_seat_share' => [
+        'ekonom' => 0.70,
+        'biznis' => 0.20,
+        'prva' => 0.10,
+    ],
+
 ];
