@@ -102,7 +102,8 @@ class SalesAnalyticsTest extends TestCase
 
     /**
      * Adds a flight on the given route at $date, anchored by one confirmed
-     * reservation, plus $cancelled separate cancelled reservations.
+     * reservation, plus $cancelled separate reservations cancelled on $date
+     * (the cancellation event date is what the analytics bucket by).
      */
     private function cancellationsOnDate(User $staff, Route $route, TicketClass $class, User $customer, Carbon $date, int $cancelled): void
     {
@@ -110,11 +111,11 @@ class SalesAnalyticsTest extends TestCase
         $this->addReservation($flight, $class, $customer, 'confirmed', 1, 10000);
 
         for ($i = 0; $i < $cancelled; $i++) {
-            $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
+            $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000, $date);
         }
     }
 
-    private function addReservation(Flight $flight, TicketClass $class, User $customer, string $status, int $tickets, float $final): Reservation
+    private function addReservation(Flight $flight, TicketClass $class, User $customer, string $status, int $tickets, float $final, ?Carbon $cancelledAt = null): Reservation
     {
         $reservation = Reservation::create([
             'user_id' => $customer->id,
@@ -124,6 +125,12 @@ class SalesAnalyticsTest extends TestCase
 
         $state = ReservationState::create(['reservation_id' => $reservation->id, 'status' => $status]);
         $reservation->update(['latest_state_id' => $state->id]);
+
+        // Cancellation analytics anchor on WHEN a reservation was cancelled, so
+        // tests place the cancelled state's created_at on an explicit date.
+        if ($cancelledAt !== null && $status === 'cancelled') {
+            $state->forceFill(['created_at' => $cancelledAt, 'updated_at' => $cancelledAt])->save();
+        }
 
         for ($i = 0; $i < $tickets; $i++) {
             FlightTicket::create([
@@ -267,10 +274,11 @@ class SalesAnalyticsTest extends TestCase
         $customer = $this->makeCustomer();
         $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
 
-        $flight = $this->makeFlight($staff, Carbon::create(2026, 6, 10, 10), 100);
+        $cancelledOn = Carbon::create(2026, 6, 10, 10);
+        $flight = $this->makeFlight($staff, $cancelledOn, 100);
         $this->addReservation($flight, $class, $customer, 'confirmed', 1, 10000);
-        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
-        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
+        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000, $cancelledOn);
+        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000, $cancelledOn);
 
         $json = $this->actingAs($admin)
             ->getJson('/admin/prodaja/analytics?date_from=2026-06-01&date_to=2026-06-30')
@@ -294,7 +302,8 @@ class SalesAnalyticsTest extends TestCase
         $customer = $this->makeCustomer();
         $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
 
-        // Rising route: cancellations 0 → 1 → 3 across three weekly departures.
+        // Rising route: cancellations 0 → 1 → 3 across three weekly dates. Only
+        // the days that actually had cancellations (1, then 3) become points.
         $rising = $this->makeRoute($staff);
         $this->cancellationsOnDate($staff, $rising, $class, $customer, Carbon::create(2026, 6, 1, 10), 0);
         $this->cancellationsOnDate($staff, $rising, $class, $customer, Carbon::create(2026, 6, 8, 10), 1);
@@ -318,7 +327,7 @@ class SalesAnalyticsTest extends TestCase
         $risingRow = collect($json['rising_cancellations'])->firstWhere('route_id', $rising->id);
         $this->assertSame(4, $risingRow['total_cancelled']);
         $this->assertGreaterThan(0, $risingRow['slope']);
-        $this->assertCount(3, $risingRow['points']);
+        $this->assertCount(2, $risingRow['points']);
     }
 
     public function test_empty_range_returns_zeroed_aggregates(): void
