@@ -91,6 +91,7 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/incidenti/rizicni/{zaposlen}', [RiskyEmployeeController::class, 'show'])->name('incidenti.rizicni.show');
 
     Route::get('/performanse', [PerformanceController::class, 'index'])->name('performanse.index');
+    Route::get('/performanse/pdf', [PerformanceController::class, 'downloadPdf'])->name('performanse.pdf');
 
     Route::get('/flota/{plane}/servisi', [ServiceController::class, 'planeIndex'])->name('flota.servisi.index');
     Route::get('/flota/{plane}/servisi/novi', [ServiceController::class, 'planeCreate'])->name('flota.servisi.create');
