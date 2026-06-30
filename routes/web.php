@@ -14,6 +14,7 @@ use App\Http\Controllers\FlightTemplateController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\LoyaltyController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PerformanceController;
 use App\Http\Controllers\PlaneController;
 use App\Http\Controllers\PutnikController;
 use App\Http\Controllers\ReservationController;
@@ -88,6 +89,8 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::post('/incidenti', [IncidentController::class, 'store'])->name('incidenti.store');
     Route::get('/incidenti/rizicni', [RiskyEmployeeController::class, 'index'])->name('incidenti.rizicni.index');
     Route::get('/incidenti/rizicni/{zaposlen}', [RiskyEmployeeController::class, 'show'])->name('incidenti.rizicni.show');
+
+    Route::get('/performanse', [PerformanceController::class, 'index'])->name('performanse.index');
 
     Route::get('/flota/{plane}/servisi', [ServiceController::class, 'planeIndex'])->name('flota.servisi.index');
     Route::get('/flota/{plane}/servisi/novi', [ServiceController::class, 'planeCreate'])->name('flota.servisi.create');
