@@ -2,152 +2,140 @@
 <html lang="sr">
 <head>
     <meta charset="UTF-8">
-    <title>Izveštaj — Prodaja karata</title>
+    <title>Izveštaj - Prodaja karata</title>
     <style>
         @page {
-            margin: 100px 36px 60px 36px;
+            margin: 70px 56px 54px 56px;
         }
 
         body {
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 11px;
-            color: #1f2937;
-            line-height: 1.4;
+            font-family: "DejaVu Sans", sans-serif;
+            font-size: 10.5px;
+            color: #2a2a2c;
+            line-height: 1.5;
         }
 
+        /* Running header / footer kept to hairlines so the sheet reads like a
+           letter, not a colored dashboard banner. */
         header {
             position: fixed;
-            top: -80px;
+            top: -50px;
             left: 0;
             right: 0;
-            height: 60px;
-            border-bottom: 2px solid #3b82f6;
-            padding-bottom: 6px;
+            height: 32px;
+            border-bottom: 1px solid #e6e6e6;
         }
 
         header .brand {
-            font-size: 14px;
+            font-size: 10px;
             font-weight: bold;
-            color: #185FA5;
+            letter-spacing: 1px;
+            color: #3a3f47;
         }
 
-        header .subtitle {
-            font-size: 10px;
-            color: #6b7280;
-        }
-
-        header .period {
+        header .meta {
             position: absolute;
-            top: 0;
+            top: 1px;
             right: 0;
-            font-size: 10px;
-            color: #6b7280;
+            font-size: 8.5px;
+            color: #9a9ea4;
             text-align: right;
+            line-height: 1.4;
         }
 
         footer {
             position: fixed;
-            bottom: -40px;
+            bottom: -36px;
             left: 0;
             right: 0;
-            font-size: 9px;
-            color: #6b7280;
-            text-align: center;
-            border-top: 1px solid #e5e7eb;
-            padding-top: 6px;
+            font-size: 8.5px;
+            color: #9a9ea4;
+            border-top: 1px solid #e6e6e6;
+            padding-top: 5px;
+            text-align: right;
+        }
+
+        /* Brand sits left (absolute); the page counter stays in normal flow so
+           DomPDF resolves counter(pages) — it returns 0 inside absolute boxes. */
+        footer .brand-f {
+            position: absolute;
+            top: 5px;
+            left: 0;
         }
 
         footer .pages:after {
             content: counter(page) " / " counter(pages);
         }
 
-        h1 {
-            font-size: 22px;
-            margin: 0 0 4px 0;
-            color: #111827;
+        /* Title block replaces the standalone cover page. */
+        .report-title {
+            margin: 2px 0 26px;
         }
 
-        h2 {
-            font-size: 14px;
-            margin: 18px 0 6px 0;
-            color: #185FA5;
-            border-bottom: 1px solid #e5e7eb;
-            padding-bottom: 3px;
-        }
-
-        .cover {
-            text-align: center;
-            padding-top: 160px;
-            page-break-after: always;
-        }
-
-        .cover .title {
-            font-size: 28px;
+        .report-title .t {
+            font-size: 21px;
             font-weight: bold;
-            color: #185FA5;
-            margin-bottom: 16px;
+            color: #1c1c1e;
+            letter-spacing: 0.2px;
         }
 
-        .cover .subtitle {
-            font-size: 14px;
-            color: #4b5563;
-            margin-bottom: 40px;
-        }
-
-        .cover .period-line {
-            font-size: 16px;
-            color: #111827;
-            font-weight: bold;
-            margin-bottom: 10px;
-        }
-
-        .cover .meta {
+        .report-title .sub {
             font-size: 11px;
-            color: #6b7280;
-            margin-top: 30px;
-        }
-
-        .kpi-grid {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 8px 0;
-            margin-bottom: 14px;
-        }
-
-        .kpi-grid td {
-            width: 25%;
-            border: 1px solid #e5e7eb;
-            border-radius: 6px;
-            padding: 10px;
-            background: #f9fafb;
-            vertical-align: top;
-        }
-
-        .kpi-label {
-            font-size: 9px;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 4px;
-        }
-
-        .kpi-value {
-            font-size: 18px;
-            font-weight: bold;
-            color: #111827;
-        }
-
-        .kpi-hint {
-            font-size: 9px;
-            color: #6b7280;
+            color: #74787f;
             margin-top: 3px;
         }
 
+        .report-title .rule {
+            margin-top: 12px;
+            border-bottom: 2px solid #3a3f47;
+            width: 46px;
+            height: 0;
+            font-size: 0;
+            line-height: 0;
+        }
+
+        h2 {
+            font-size: 11px;
+            font-weight: bold;
+            color: #1c1c1e;
+            letter-spacing: 0.3px;
+            margin: 26px 0 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e6e6e6;
+        }
+
+        /* KPIs as bare figures: no cards, fills or borders. table-layout:fixed
+           keeps DomPDF from mis-measuring cell heights (which otherwise spilled
+           the single figure row across several blank pages). */
+        table.figures {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            margin: 4px 0 2px;
+        }
+
+        table.figures td {
+            padding: 2px 14px 2px 0;
+            vertical-align: top;
+        }
+
+        .fig-value {
+            font-size: 19px;
+            font-weight: bold;
+            color: #1c1c1e;
+        }
+
+        .fig-label {
+            font-size: 9.5px;
+            color: #74787f;
+            margin-top: 2px;
+        }
+
+        /* Data tables: ruled only, no header fill, no zebra. */
         table.data {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 4px;
-            margin-bottom: 6px;
+            margin: 4px 0 2px;
         }
 
         table.data thead {
@@ -155,43 +143,35 @@
         }
 
         table.data th {
-            background: #185FA5;
-            color: #ffffff;
             text-align: left;
-            padding: 6px 8px;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
+            color: #74787f;
+            padding: 4px 8px 5px 0;
+            border-bottom: 1px solid #bfc3c9;
         }
 
         table.data td {
-            padding: 5px 8px;
-            border-bottom: 1px solid #e5e7eb;
+            padding: 5px 8px 5px 0;
+            border-bottom: 1px solid #efefef;
             font-size: 10px;
+            color: #2a2a2c;
         }
 
-        table.data tr:nth-child(even) td {
-            background: #f9fafb;
+        table.data tbody tr:last-child td {
+            border-bottom: 1px solid #bfc3c9;
         }
 
         .num {
             text-align: right;
-        }
-
-        .pill-high {
-            color: #047857;
-            font-weight: bold;
-        }
-
-        .pill-low {
-            color: #b91c1c;
-            font-weight: bold;
+            padding-right: 0 !important;
         }
 
         .empty {
-            padding: 12px;
-            text-align: center;
-            color: #6b7280;
+            padding: 8px 0;
+            color: #9a9ea4;
             font-style: italic;
+            font-size: 10px;
         }
     </style>
 </head>
@@ -204,56 +184,48 @@
     $highThreshold = (int) round($extremes['high_threshold']);
     $lowThreshold = (int) round($extremes['low_threshold']);
     $fmtDate = fn ($d) => \Illuminate\Support\Carbon::parse($d)->format('d.m.Y.');
+    $n0 = fn ($v) => number_format($v, 0, ',', '.');
+    $n1 = fn ($v) => number_format($v, 1, ',', '.');
 @endphp
 
 <header>
-    <div class="brand">SkyAir — Prodaja karata</div>
-    <div class="subtitle">Izveštaj analitike prodaje</div>
-    <div class="period">
-        Period: {{ $period['date_from_human'] }} – {{ $period['date_to_human'] }}<br>
+    <span class="brand">SKYAIR</span>
+    <div class="meta">
+        {{ $period['date_from_human'] }} – {{ $period['date_to_human'] }}<br>
         Generisano: {{ $generated_at }}
     </div>
 </header>
 
 <footer>
-    <span class="pages">Stranica </span>
+    <span class="brand-f">SkyAir - Prodaja karata</span>
+    <span class="pages">Strana </span>
 </footer>
 
-{{-- Naslovna stranica --}}
-<div class="cover">
-    <div class="title">Izveštaj — Prodaja karata</div>
-    <div class="period-line">
-        {{ $period['date_from_human'] }} – {{ $period['date_to_human'] }}
-    </div>
-    <div class="meta">
-        Datum generisanja: {{ $generated_at }}<br>
-        SkyAir d.o.o. — Sistem prodaje karata
-    </div>
+<div class="report-title">
+    <div class="t">Prodaja karata</div>
+    <div class="sub">{{ $period['date_from_human'] }} – {{ $period['date_to_human'] }}</div>
+    <div class="rule"></div>
 </div>
 
-{{-- Sažetak (KPI kartice) --}}
+{{-- Sažetak --}}
 <h2>Sažetak</h2>
-<table class="kpi-grid">
+<table class="figures">
     <tr>
         <td>
-            <div class="kpi-label">Prodato karata</div>
-            <div class="kpi-value">{{ number_format($kpis['tickets_sold'], 0, ',', '.') }}</div>
-            <div class="kpi-hint">Sedišta na letovima (bez otkazanih)</div>
+            <div class="fig-value">{{ $n0($kpis['tickets_sold']) }}</div>
+            <div class="fig-label">Prodato karata</div>
         </td>
         <td>
-            <div class="kpi-label">Prihod</div>
-            <div class="kpi-value">{{ number_format($kpis['revenue'], 0, ',', '.') }} RSD</div>
-            <div class="kpi-hint">Plaćene i iskorišćene rezervacije</div>
+            <div class="fig-value">{{ $n0($kpis['revenue']) }} RSD</div>
+            <div class="fig-label">Prihod</div>
         </td>
         <td>
-            <div class="kpi-label">Stopa otkazivanja</div>
-            <div class="kpi-value">{{ number_format($kpis['cancellation_rate_pct'], 1, ',', '.') }}%</div>
-            <div class="kpi-hint">{{ $cancellation['cancelled_reservations'] }} od {{ $cancellation['total_reservations'] }} rezervacija</div>
+            <div class="fig-value">{{ $n1($kpis['cancellation_rate_pct']) }}%</div>
+            <div class="fig-label">Stopa otkazivanja</div>
         </td>
         <td>
-            <div class="kpi-label">Prosečna popunjenost</div>
-            <div class="kpi-value">{{ number_format($kpis['avg_occupancy_pct'], 1, ',', '.') }}%</div>
-            <div class="kpi-hint">Prosek po letovima u periodu</div>
+            <div class="fig-value">{{ $n1($kpis['avg_occupancy_pct']) }}%</div>
+            <div class="fig-label">Prosečna popunjenost</div>
         </td>
     </tr>
 </table>
@@ -276,9 +248,9 @@
             @foreach ($analytics['occupancy_by_class'] as $row)
                 <tr>
                     <td>{{ $row['class_name'] }}</td>
-                    <td class="num">{{ number_format($row['sold'], 0, ',', '.') }}</td>
-                    <td class="num">{{ number_format($row['total_seats'], 0, ',', '.') }}</td>
-                    <td class="num">{{ number_format($row['occupancy_pct'], 1, ',', '.') }}%</td>
+                    <td class="num">{{ $n0($row['sold']) }}</td>
+                    <td class="num">{{ $n0($row['total_seats']) }}</td>
+                    <td class="num">{{ $n1($row['occupancy_pct']) }}%</td>
                 </tr>
             @endforeach
         </tbody>
@@ -304,9 +276,9 @@
             @foreach ($extremes['highest'] as $row)
                 <tr>
                     <td>{{ $row['flight_number'] }}</td>
-                    <td>{{ $row['route_name'] ?? '—' }}</td>
+                    <td>{{ $row['route_name'] ?? '-' }}</td>
                     <td>{{ $fmtDate($row['date']) }}</td>
-                    <td class="num pill-high">{{ number_format($row['occupancy_pct'], 1, ',', '.') }}%</td>
+                    <td class="num">{{ $n1($row['occupancy_pct']) }}%</td>
                     <td class="num">{{ $row['sold'] }} / {{ $row['capacity'] }}</td>
                 </tr>
             @endforeach
@@ -333,9 +305,9 @@
             @foreach ($extremes['lowest'] as $row)
                 <tr>
                     <td>{{ $row['flight_number'] }}</td>
-                    <td>{{ $row['route_name'] ?? '—' }}</td>
+                    <td>{{ $row['route_name'] ?? '-' }}</td>
                     <td>{{ $fmtDate($row['date']) }}</td>
-                    <td class="num pill-low">{{ number_format($row['occupancy_pct'], 1, ',', '.') }}%</td>
+                    <td class="num">{{ $n1($row['occupancy_pct']) }}%</td>
                     <td class="num">{{ $row['sold'] }} / {{ $row['capacity'] }}</td>
                 </tr>
             @endforeach
@@ -343,29 +315,23 @@
     </table>
 @endif
 
-{{-- Stopa otkazivanja --}}
-<h2>Stopa otkazivanja</h2>
-<table class="data">
-    <thead>
-        <tr>
-            <th>Pokazatelj</th>
-            <th class="num">Vrednost</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>Ukupno rezervacija</td>
-            <td class="num">{{ number_format($cancellation['total_reservations'], 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td>Otkazane rezervacije</td>
-            <td class="num">{{ number_format($cancellation['cancelled_reservations'], 0, ',', '.') }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight:bold;">Stopa otkazivanja</td>
-            <td class="num" style="font-weight:bold;">{{ number_format($cancellation['rate_pct'], 1, ',', '.') }}%</td>
-        </tr>
-    </tbody>
+{{-- Otkazivanja --}}
+<h2>Otkazivanja</h2>
+<table class="figures">
+    <tr>
+        <td>
+            <div class="fig-value">{{ $n0($cancellation['total_reservations']) }}</div>
+            <div class="fig-label">Ukupno rezervacija</div>
+        </td>
+        <td>
+            <div class="fig-value">{{ $n0($cancellation['cancelled_reservations']) }}</div>
+            <div class="fig-label">Otkazane rezervacije</div>
+        </td>
+        <td>
+            <div class="fig-value">{{ $n1($cancellation['rate_pct']) }}%</div>
+            <div class="fig-label">Stopa otkazivanja</div>
+        </td>
+    </tr>
 </table>
 
 {{-- Trend otkazivanja --}}
