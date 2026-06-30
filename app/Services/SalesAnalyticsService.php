@@ -8,11 +8,15 @@ use Illuminate\Support\Facades\DB;
 class SalesAnalyticsService
 {
     /**
-     * All sales-analytics aggregates for a period. The period filters flights
-     * by their scheduled departure (expected_takeoff). A seat counts as "sold"
-     * when its reservation's latest state is not 'cancelled' — mirroring
-     * PricingService::occupancyPct(). Canonical statuses: pending / confirmed /
-     * cancelled / completed.
+     * All sales-analytics aggregates for a period. Occupancy/sales aggregates
+     * filter flights by their scheduled departure (expected_takeoff); a seat
+     * counts as "sold" when its reservation's latest state is not 'cancelled'
+     * — mirroring PricingService::occupancyPct(). The cancellation aggregates
+     * instead anchor on WHEN a reservation was cancelled (the cancelled
+     * reservation_state's created_at), not on the flight's departure date:
+     * cancellations always target future flights, so departure-date bucketing
+     * hid them from any backward-looking period. Canonical statuses:
+     * pending / confirmed / cancelled / completed.
      */
     public function analytics(Carbon $from, Carbon $to): array
     {
@@ -190,8 +194,11 @@ class SalesAnalyticsService
     }
 
     /**
-     * Cancellation ratio = cancelled reservations / total reservations, over
-     * reservations holding at least one ticket on a flight in the period.
+     * Cancellation ratio for the period: reservations cancelled within the
+     * period (by the cancelled state's created_at) over reservations created
+     * within the period. Both sides are anchored on event time rather than on
+     * flight departure, so the rate reflects actual cancellation activity in
+     * the window instead of always reading 0 for backward-looking periods.
      *
      * @return array<string, mixed>
      */
@@ -200,16 +207,17 @@ class SalesAnalyticsService
         $row = DB::selectOne(
             <<<'SQL'
             SELECT
-                COUNT(DISTINCT res.id) AS total,
                 COUNT(DISTINCT res.id) FILTER (
-                    WHERE COALESCE(rs.status, 'pending') = 'cancelled'
+                    WHERE res.created_at BETWEEN ? AND ?
+                ) AS total,
+                COUNT(DISTINCT res.id) FILTER (
+                    WHERE cs.created_at BETWEEN ? AND ?
                 ) AS cancelled
             FROM reservations res
-            JOIN flight_tickets ft ON ft.reservation_id = res.id
-            JOIN flights f ON f.id = ft.flight_id AND f.expected_takeoff BETWEEN ? AND ?
-            LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
+            LEFT JOIN reservation_states cs
+                ON cs.reservation_id = res.id AND cs.status = 'cancelled'
             SQL,
-            [$from, $to],
+            [$from, $to, $from, $to],
         );
 
         $total = (int) $row->total;
@@ -223,8 +231,9 @@ class SalesAnalyticsService
     }
 
     /**
-     * Daily count of cancelled reservations bucketed by flight departure date,
-     * zero-filled across the whole period for a clean time series.
+     * Daily count of reservations cancelled on each day (by the cancelled
+     * state's created_at), zero-filled across the whole period for a clean
+     * time series of cancellation activity.
      *
      * @return array<int, array{date: string, count: int}>
      */
@@ -235,14 +244,11 @@ class SalesAnalyticsService
             SELECT gs.d::date AS date, COALESCE(c.count, 0) AS count
             FROM generate_series(?::date, ?::date, '1 day'::interval) AS gs(d)
             LEFT JOIN (
-                SELECT f.expected_takeoff::date AS day, COUNT(DISTINCT res.id) AS count
-                FROM reservations res
-                JOIN flight_tickets ft ON ft.reservation_id = res.id
-                JOIN flights f ON f.id = ft.flight_id
-                LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
-                WHERE f.expected_takeoff BETWEEN ? AND ?
-                  AND COALESCE(rs.status, 'pending') = 'cancelled'
-                GROUP BY f.expected_takeoff::date
+                SELECT cs.created_at::date AS day, COUNT(DISTINCT cs.reservation_id) AS count
+                FROM reservation_states cs
+                WHERE cs.status = 'cancelled'
+                  AND cs.created_at BETWEEN ? AND ?
+                GROUP BY cs.created_at::date
             ) c ON c.day = gs.d::date
             ORDER BY gs.d
             SQL,
@@ -256,10 +262,10 @@ class SalesAnalyticsService
     }
 
     /**
-     * Per-flight cancellation breakdown for the period's backing table: how
-     * many of a flight's reservations were cancelled, out of its total. Only
-     * flights holding at least one reservation are listed, the heaviest
-     * cancellations first.
+     * Per-flight cancellation breakdown for the period's backing table: for
+     * each flight that had at least one reservation cancelled within the
+     * period (by the cancelled state's created_at), how many of its bookings
+     * were cancelled out of the flight's total. Heaviest cancellations first.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -273,20 +279,22 @@ class SalesAnalyticsService
                 r.name   AS route_name,
                 COUNT(DISTINCT res.id) AS total,
                 COUNT(DISTINCT res.id) FILTER (
-                    WHERE COALESCE(rs.status, 'pending') = 'cancelled'
+                    WHERE cs.created_at BETWEEN ? AND ?
                 ) AS cancelled
             FROM flights f
             LEFT JOIN routes r ON r.id = f.route_id
             JOIN flight_tickets ft ON ft.flight_id = f.id
             JOIN reservations res ON res.id = ft.reservation_id
-            LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
-            WHERE f.expected_takeoff BETWEEN ? AND ?
+            LEFT JOIN reservation_states cs
+                ON cs.reservation_id = res.id AND cs.status = 'cancelled'
             GROUP BY f.id, f.number, r.name
-            HAVING COUNT(DISTINCT res.id) > 0
+            HAVING COUNT(DISTINCT res.id) FILTER (
+                WHERE cs.created_at BETWEEN ? AND ?
+            ) > 0
             ORDER BY cancelled DESC, total DESC, f.id
             LIMIT 20
             SQL,
-            [$from, $to],
+            [$from, $to, $from, $to],
         );
 
         return array_map(function ($row) {
@@ -307,10 +315,12 @@ class SalesAnalyticsService
     /**
      * Routes whose cancellations are trending upward. A flight number is unique
      * per flight (auto-generated), so the recurring unit over time is the route:
-     * for each route we take its most recent flight-date cancellation counts and
-     * flag the route when that short series has a positive least-squares slope.
-     * A simple slope + threshold heuristic — enough to surface problem routes
-     * early without over-fitting.
+     * for each route we take its most recent cancellation-day counts (bucketed
+     * by when reservations were cancelled, not by flight departure) and flag the
+     * route when that short series has a positive least-squares slope. A simple
+     * slope + threshold heuristic — enough to surface problem routes early
+     * without over-fitting. Only days on which a cancellation actually happened
+     * are sample points, so two such days are already enough to read a trend.
      *
      * @return array<int, array<string, mixed>>
      */
@@ -321,17 +331,16 @@ class SalesAnalyticsService
             SELECT
                 r.id   AS route_id,
                 r.name AS route_name,
-                f.expected_takeoff::date AS day,
-                COUNT(DISTINCT res.id) FILTER (
-                    WHERE COALESCE(rs.status, 'pending') = 'cancelled'
-                ) AS cancelled
-            FROM flights f
+                cs.created_at::date AS day,
+                COUNT(DISTINCT res.id) AS cancelled
+            FROM reservation_states cs
+            JOIN reservations res ON res.id = cs.reservation_id
+            JOIN flight_tickets ft ON ft.reservation_id = res.id
+            JOIN flights f ON f.id = ft.flight_id
             JOIN routes r ON r.id = f.route_id
-            JOIN flight_tickets ft ON ft.flight_id = f.id
-            JOIN reservations res ON res.id = ft.reservation_id
-            LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
-            WHERE f.expected_takeoff BETWEEN ? AND ?
-            GROUP BY r.id, r.name, f.expected_takeoff::date
+            WHERE cs.status = 'cancelled'
+              AND cs.created_at BETWEEN ? AND ?
+            GROUP BY r.id, r.name, cs.created_at::date
             ORDER BY r.id, day
             SQL,
             [$from, $to],
@@ -346,7 +355,7 @@ class SalesAnalyticsService
         }
 
         $window = 6;     // only the most recent buckets count as "recent"
-        $minPoints = 3;  // need a few buckets before calling it a trend
+        $minPoints = 2;  // each point is a day with cancellations; two show a direction
         $minTotal = 2;   // ignore routes with a trivial number of cancellations
 
         $rising = [];
