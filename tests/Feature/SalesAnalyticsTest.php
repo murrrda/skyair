@@ -53,7 +53,7 @@ class SalesAnalyticsTest extends TestCase
         return $user;
     }
 
-    private function makeFlight(User $staff, Carbon $takeoff, int $capacity): Flight
+    private function makeFlight(User $staff, Carbon $takeoff, int $capacity, ?Route $route = null): Flight
     {
         $this->seq++;
 
@@ -70,18 +70,7 @@ class SalesAnalyticsTest extends TestCase
             'status' => 'in_garage',
         ]);
 
-        $from = Airport::create(['iata_code' => 'F'.$this->seq, 'name' => 'From', 'city' => 'From', 'country' => 'X', 'season_type' => 'none']);
-        $to = Airport::create(['iata_code' => 'T'.$this->seq, 'name' => 'To', 'city' => 'To', 'country' => 'Y', 'season_type' => 'none']);
-
-        $route = Route::create([
-            'starting_airport_id' => $from->id,
-            'landing_airport_id' => $to->id,
-            'admin_id' => $staff->id,
-            'name' => 'Ruta '.$this->seq,
-            'distance_km' => 500,
-            'estimated_time' => 90,
-            'active' => true,
-        ]);
+        $route ??= $this->makeRoute($staff);
 
         return Flight::create([
             'plane_id' => $plane->id,
@@ -91,6 +80,38 @@ class SalesAnalyticsTest extends TestCase
             'expected_arrival' => $takeoff->copy()->addHours(2),
             'status' => 'scheduled',
         ]);
+    }
+
+    private function makeRoute(User $staff): Route
+    {
+        $this->seq++;
+
+        $from = Airport::create(['iata_code' => 'F'.$this->seq, 'name' => 'From', 'city' => 'From', 'country' => 'X', 'season_type' => 'none']);
+        $to = Airport::create(['iata_code' => 'T'.$this->seq, 'name' => 'To', 'city' => 'To', 'country' => 'Y', 'season_type' => 'none']);
+
+        return Route::create([
+            'starting_airport_id' => $from->id,
+            'landing_airport_id' => $to->id,
+            'admin_id' => $staff->id,
+            'name' => 'Ruta '.$this->seq,
+            'distance_km' => 500,
+            'estimated_time' => 90,
+            'active' => true,
+        ]);
+    }
+
+    /**
+     * Adds a flight on the given route at $date, anchored by one confirmed
+     * reservation, plus $cancelled separate cancelled reservations.
+     */
+    private function cancellationsOnDate(User $staff, Route $route, TicketClass $class, User $customer, Carbon $date, int $cancelled): void
+    {
+        $flight = $this->makeFlight($staff, $date, 100, $route);
+        $this->addReservation($flight, $class, $customer, 'confirmed', 1, 10000);
+
+        for ($i = 0; $i < $cancelled; $i++) {
+            $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
+        }
     }
 
     private function addReservation(Flight $flight, TicketClass $class, User $customer, string $status, int $tickets, float $final): Reservation
@@ -237,6 +258,67 @@ class SalesAnalyticsTest extends TestCase
         $ekoAll = collect($json['occupancy_by_class'])->firstWhere('class_name', 'Ekonomska');
         $this->assertSame(6, $ekoAll['sold']);
         $this->assertSame(210, $ekoAll['total_seats']);
+    }
+
+    public function test_cancellation_by_flight_breakdown(): void
+    {
+        $admin = $this->makeAdmin();
+        $staff = $this->makeStaff();
+        $customer = $this->makeCustomer();
+        $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
+
+        $flight = $this->makeFlight($staff, Carbon::create(2026, 6, 10, 10), 100);
+        $this->addReservation($flight, $class, $customer, 'confirmed', 1, 10000);
+        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
+        $this->addReservation($flight, $class, $customer, 'cancelled', 1, 10000);
+
+        $json = $this->actingAs($admin)
+            ->getJson('/admin/prodaja/analytics?date_from=2026-06-01&date_to=2026-06-30')
+            ->assertOk()
+            ->assertJsonStructure([
+                'cancellation_by_flight' => [['flight_id', 'flight_number', 'route_name', 'cancelled', 'total', 'rate_pct']],
+            ])
+            ->json();
+
+        // 1 confirmed + 2 cancelled reservations → 2 of 3 cancelled = 66.67%.
+        $row = collect($json['cancellation_by_flight'])->firstWhere('flight_id', $flight->id);
+        $this->assertSame(2, $row['cancelled']);
+        $this->assertSame(3, $row['total']);
+        $this->assertSame(66.67, $row['rate_pct']);
+    }
+
+    public function test_rising_cancellations_flags_only_upward_trending_routes(): void
+    {
+        $admin = $this->makeAdmin();
+        $staff = $this->makeStaff();
+        $customer = $this->makeCustomer();
+        $class = TicketClass::create(['name' => 'Ekonomska', 'multiplier' => 1.0]);
+
+        // Rising route: cancellations 0 → 1 → 3 across three weekly departures.
+        $rising = $this->makeRoute($staff);
+        $this->cancellationsOnDate($staff, $rising, $class, $customer, Carbon::create(2026, 6, 1, 10), 0);
+        $this->cancellationsOnDate($staff, $rising, $class, $customer, Carbon::create(2026, 6, 8, 10), 1);
+        $this->cancellationsOnDate($staff, $rising, $class, $customer, Carbon::create(2026, 6, 15, 10), 3);
+
+        // Falling route: 3 → 1 → 0.
+        $falling = $this->makeRoute($staff);
+        $this->cancellationsOnDate($staff, $falling, $class, $customer, Carbon::create(2026, 6, 1, 10), 3);
+        $this->cancellationsOnDate($staff, $falling, $class, $customer, Carbon::create(2026, 6, 8, 10), 1);
+        $this->cancellationsOnDate($staff, $falling, $class, $customer, Carbon::create(2026, 6, 15, 10), 0);
+
+        $json = $this->actingAs($admin)
+            ->getJson('/admin/prodaja/analytics?date_from=2026-05-01&date_to=2026-07-01')
+            ->assertOk()
+            ->json();
+
+        $flagged = array_column($json['rising_cancellations'], 'route_id');
+        $this->assertContains($rising->id, $flagged);
+        $this->assertNotContains($falling->id, $flagged);
+
+        $risingRow = collect($json['rising_cancellations'])->firstWhere('route_id', $rising->id);
+        $this->assertSame(4, $risingRow['total_cancelled']);
+        $this->assertGreaterThan(0, $risingRow['slope']);
+        $this->assertCount(3, $risingRow['points']);
     }
 
     public function test_empty_range_returns_zeroed_aggregates(): void

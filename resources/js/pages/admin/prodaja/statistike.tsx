@@ -9,9 +9,13 @@ import {
     RefreshCw,
     TicketCheck,
     TicketX,
-    TrendingDown,
 } from 'lucide-react';
 import { useState } from 'react';
+import CancellationAnalyticsSection from '@/components/sales/CancellationAnalyticsSection';
+import type {
+    CancellationByFlightRow,
+    RisingRoute,
+} from '@/components/sales/CancellationAnalyticsSection';
 import OccupancyByClassSection from '@/components/sales/OccupancyByClassSection';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +62,8 @@ type Analytics = {
     >;
     cancellation: Cancellation;
     cancellation_trend: { date: string; count: number }[];
+    cancellation_by_flight: CancellationByFlightRow[];
+    rising_cancellations: RisingRoute[];
     occupancy_extremes: {
         highest: FlightOccupancy[];
         lowest: FlightOccupancy[];
@@ -502,14 +508,13 @@ export default function ProdajaStatistike() {
                         bySeason={analytics.occupancy_by_class_by_season}
                     />
 
-                    {/* S4 — trend otkazivanja */}
-                    <ChartSection
-                        icon={TrendingDown}
-                        title="Trend otkazivanja"
-                        description="Broj otkazanih rezervacija kroz vreme"
-                    >
-                        <ChartPlaceholder />
-                    </ChartSection>
+                    {/* S4 — analitika otkazivanja (SCRUM-179) */}
+                    <CancellationAnalyticsSection
+                        cancellation={analytics.cancellation}
+                        trend={analytics.cancellation_trend}
+                        byFlight={analytics.cancellation_by_flight}
+                        rising={analytics.rising_cancellations}
+                    />
 
                     {/* S5 — letovi visoke i niske popunjenosti */}
                     <ChartSection

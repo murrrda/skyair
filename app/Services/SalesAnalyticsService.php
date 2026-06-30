@@ -25,6 +25,8 @@ class SalesAnalyticsService
             'occupancy_by_class_by_season' => $this->occupancyByClassBySeason($from, $to),
             'cancellation' => $cancellation,
             'cancellation_trend' => $this->cancellationTrend($from, $to),
+            'cancellation_by_flight' => $this->cancellationByFlight($from, $to),
+            'rising_cancellations' => $this->risingCancellations($from, $to),
             'occupancy_extremes' => $this->occupancyExtremes($flightOccupancies),
         ];
     }
@@ -249,6 +251,160 @@ class SalesAnalyticsService
             'date' => $row->date,
             'count' => (int) $row->count,
         ], $rows);
+    }
+
+    /**
+     * Per-flight cancellation breakdown for the period's backing table: how
+     * many of a flight's reservations were cancelled, out of its total. Only
+     * flights holding at least one reservation are listed, the heaviest
+     * cancellations first.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function cancellationByFlight(Carbon $from, Carbon $to): array
+    {
+        $rows = DB::select(
+            <<<'SQL'
+            SELECT
+                f.id     AS flight_id,
+                f.number AS flight_number,
+                r.name   AS route_name,
+                COUNT(DISTINCT res.id) AS total,
+                COUNT(DISTINCT res.id) FILTER (
+                    WHERE COALESCE(rs.status, 'pending') = 'cancelled'
+                ) AS cancelled
+            FROM flights f
+            LEFT JOIN routes r ON r.id = f.route_id
+            JOIN flight_tickets ft ON ft.flight_id = f.id
+            JOIN reservations res ON res.id = ft.reservation_id
+            LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
+            WHERE f.expected_takeoff BETWEEN ? AND ?
+            GROUP BY f.id, f.number, r.name
+            HAVING COUNT(DISTINCT res.id) > 0
+            ORDER BY cancelled DESC, total DESC, f.id
+            LIMIT 20
+            SQL,
+            [$from, $to],
+        );
+
+        return array_map(function ($row) {
+            $total = (int) $row->total;
+            $cancelled = (int) $row->cancelled;
+
+            return [
+                'flight_id' => (int) $row->flight_id,
+                'flight_number' => $row->flight_number,
+                'route_name' => $row->route_name,
+                'cancelled' => $cancelled,
+                'total' => $total,
+                'rate_pct' => $total > 0 ? round($cancelled / $total * 100, 2) : 0.0,
+            ];
+        }, $rows);
+    }
+
+    /**
+     * Routes whose cancellations are trending upward. A flight number is unique
+     * per flight (auto-generated), so the recurring unit over time is the route:
+     * for each route we take its most recent flight-date cancellation counts and
+     * flag the route when that short series has a positive least-squares slope.
+     * A simple slope + threshold heuristic — enough to surface problem routes
+     * early without over-fitting.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function risingCancellations(Carbon $from, Carbon $to): array
+    {
+        $rows = DB::select(
+            <<<'SQL'
+            SELECT
+                r.id   AS route_id,
+                r.name AS route_name,
+                f.expected_takeoff::date AS day,
+                COUNT(DISTINCT res.id) FILTER (
+                    WHERE COALESCE(rs.status, 'pending') = 'cancelled'
+                ) AS cancelled
+            FROM flights f
+            JOIN routes r ON r.id = f.route_id
+            JOIN flight_tickets ft ON ft.flight_id = f.id
+            JOIN reservations res ON res.id = ft.reservation_id
+            LEFT JOIN reservation_states rs ON rs.id = res.latest_state_id
+            WHERE f.expected_takeoff BETWEEN ? AND ?
+            GROUP BY r.id, r.name, f.expected_takeoff::date
+            ORDER BY r.id, day
+            SQL,
+            [$from, $to],
+        );
+
+        // Chronological per-day cancellation counts, grouped by route.
+        $routes = [];
+        foreach ($rows as $row) {
+            $id = (int) $row->route_id;
+            $routes[$id] ??= ['route_id' => $id, 'route_name' => $row->route_name, 'points' => []];
+            $routes[$id]['points'][] = ['date' => $row->day, 'count' => (int) $row->cancelled];
+        }
+
+        $window = 6;     // only the most recent buckets count as "recent"
+        $minPoints = 3;  // need a few buckets before calling it a trend
+        $minTotal = 2;   // ignore routes with a trivial number of cancellations
+
+        $rising = [];
+        foreach ($routes as $route) {
+            $points = array_slice($route['points'], -$window);
+
+            if (count($points) < $minPoints) {
+                continue;
+            }
+
+            $counts = array_column($points, 'count');
+            $total = array_sum($counts);
+
+            if ($total < $minTotal) {
+                continue;
+            }
+
+            $slope = $this->slope($counts);
+
+            if ($slope <= 0) {
+                continue;
+            }
+
+            $rising[] = [
+                'route_id' => $route['route_id'],
+                'route_name' => $route['route_name'],
+                'points' => $points,
+                'total_cancelled' => $total,
+                'slope' => round($slope, 2),
+            ];
+        }
+
+        usort($rising, fn ($a, $b) => $b['slope'] <=> $a['slope']);
+
+        return array_slice($rising, 0, 10);
+    }
+
+    /**
+     * Least-squares slope of a short integer series over indices 0..n-1.
+     *
+     * @param  array<int, int>  $y
+     */
+    private function slope(array $y): float
+    {
+        $n = count($y);
+        if ($n < 2) {
+            return 0.0;
+        }
+
+        $meanX = ($n - 1) / 2;
+        $meanY = array_sum($y) / $n;
+
+        $num = 0.0;
+        $den = 0.0;
+        foreach (array_values($y) as $i => $value) {
+            $num += ($i - $meanX) * ($value - $meanY);
+            $den += ($i - $meanX) ** 2;
+        }
+
+        return $den == 0.0 ? 0.0 : $num / $den;
     }
 
     /**
