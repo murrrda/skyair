@@ -1,9 +1,37 @@
 import { Head, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+
+const MONTHS_SR = [
+    'Januar',
+    'Februar',
+    'Mart',
+    'April',
+    'Maj',
+    'Jun',
+    'Jul',
+    'Avgust',
+    'Septembar',
+    'Oktobar',
+    'Novembar',
+    'Decembar',
+];
+
+const monthLabel = (d: string) => {
+    const dt = new Date(d);
+
+    return `${MONTHS_SR[dt.getMonth()]} ${dt.getFullYear()}.`;
+};
 
 type Status = 'over' | 'near' | 'normal';
 
@@ -199,17 +227,47 @@ export default function Performanse() {
     const [role, setRole] = useState(filters.role ?? '');
     const [page, setPage] = useState(1);
 
-    function generate() {
+    // Export dialog state.
+    const [exportOpen, setExportOpen] = useState(false);
+    const [exportTitle, setExportTitle] = useState('');
+    const [exportFrom, setExportFrom] = useState(from);
+    const [exportTo, setExportTo] = useState(to);
+
+    function apply(
+        next: Partial<{
+            from: string;
+            to: string;
+            employee_id: string;
+            role: string;
+        }> = {},
+    ) {
         router.get(
             '/admin/performanse',
             {
-                from,
-                to,
-                employee_id: employeeId || undefined,
-                role: role || undefined,
+                from: next.from ?? from,
+                to: next.to ?? to,
+                employee_id: (next.employee_id ?? employeeId) || undefined,
+                role: (next.role ?? role) || undefined,
             },
             { preserveScroll: true, preserveState: true },
         );
+    }
+
+    function openExport() {
+        setExportTitle(`Performanse posade — ${monthLabel(to)}`);
+        setExportFrom(from);
+        setExportTo(to);
+        setExportOpen(true);
+    }
+
+    function downloadReport() {
+        const params = new URLSearchParams({
+            title: exportTitle,
+            from: exportFrom,
+            to: exportTo,
+        });
+        setExportOpen(false);
+        window.location.href = `/admin/performanse/pdf?${params.toString()}`;
     }
 
     const maxHours = Math.max(
@@ -258,7 +316,10 @@ export default function Performanse() {
                             id="from"
                             type="date"
                             value={from}
-                            onChange={(e) => setFrom(e.target.value)}
+                            onChange={(e) => {
+                                setFrom(e.target.value);
+                                apply({ from: e.target.value });
+                            }}
                             className="mt-1"
                         />
                     </div>
@@ -273,7 +334,10 @@ export default function Performanse() {
                             id="to"
                             type="date"
                             value={to}
-                            onChange={(e) => setTo(e.target.value)}
+                            onChange={(e) => {
+                                setTo(e.target.value);
+                                apply({ to: e.target.value });
+                            }}
                             className="mt-1"
                         />
                     </div>
@@ -283,7 +347,10 @@ export default function Performanse() {
                         </Label>
                         <select
                             value={employeeId}
-                            onChange={(e) => setEmployeeId(e.target.value)}
+                            onChange={(e) => {
+                                setEmployeeId(e.target.value);
+                                apply({ employee_id: e.target.value });
+                            }}
                             className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                         >
                             <option value="">Svi zaposleni</option>
@@ -300,7 +367,10 @@ export default function Performanse() {
                         </Label>
                         <select
                             value={role}
-                            onChange={(e) => setRole(e.target.value)}
+                            onChange={(e) => {
+                                setRole(e.target.value);
+                                apply({ role: e.target.value });
+                            }}
                             className="mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
                         >
                             <option value="">Sve pozicije</option>
@@ -311,7 +381,7 @@ export default function Performanse() {
                             ))}
                         </select>
                     </div>
-                    <Button onClick={generate}>Generiši izveštaj</Button>
+                    <Button onClick={openExport}>Generiši izveštaj</Button>
                 </div>
 
                 {/* KPI cards */}
@@ -687,6 +757,81 @@ export default function Performanse() {
                     )}
                 </div>
             </div>
+
+            {/* Export dialog (Figma 214-4512) */}
+            <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Generiši izveštaj</DialogTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Podesite parametre i format izvoza
+                        </p>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label
+                                htmlFor="export-title"
+                                className="text-xs text-muted-foreground uppercase"
+                            >
+                                Naslov izveštaja
+                            </Label>
+                            <Input
+                                id="export-title"
+                                value={exportTitle}
+                                onChange={(e) => setExportTitle(e.target.value)}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <Label
+                                    htmlFor="export-from"
+                                    className="text-xs text-muted-foreground uppercase"
+                                >
+                                    Period — od
+                                </Label>
+                                <Input
+                                    id="export-from"
+                                    type="date"
+                                    value={exportFrom}
+                                    onChange={(e) =>
+                                        setExportFrom(e.target.value)
+                                    }
+                                    className="mt-1"
+                                />
+                            </div>
+                            <div>
+                                <Label
+                                    htmlFor="export-to"
+                                    className="text-xs text-muted-foreground uppercase"
+                                >
+                                    Period — do
+                                </Label>
+                                <Input
+                                    id="export-to"
+                                    type="date"
+                                    value={exportTo}
+                                    onChange={(e) =>
+                                        setExportTo(e.target.value)
+                                    }
+                                    className="mt-1"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => setExportOpen(false)}
+                        >
+                            Otkaži
+                        </Button>
+                        <Button onClick={downloadReport}>
+                            Generiši i preuzmi
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
