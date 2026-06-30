@@ -313,7 +313,8 @@ export default function ProdajaStatistike() {
     const isEmpty =
         kpis.tickets_sold === 0 &&
         cancellation.total_reservations === 0 &&
-        analytics.occupancy_extremes.highest.length === 0;
+        analytics.occupancy_extremes.highest.length === 0 &&
+        analytics.occupancy_extremes.lowest.length === 0;
 
     return (
         <>
