@@ -101,6 +101,7 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::get('/podrska/analytics', [SupportAnalyticsController::class, 'index'])->name('podrska.analytics');
     Route::get('/podrska/statistike/pdf', [SupportAnalyticsController::class, 'downloadPdf'])->name('podrska.statistike.pdf');
 
+    Route::get('/prodaja/statistike', [SalesAnalyticsController::class, 'dashboard'])->name('prodaja.statistike');
     Route::get('/prodaja/analytics', [SalesAnalyticsController::class, 'index'])->name('prodaja.analytics');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');

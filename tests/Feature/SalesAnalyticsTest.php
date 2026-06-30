@@ -15,6 +15,7 @@ use App\Models\Zaposlen;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class SalesAnalyticsTest extends TestCase
@@ -234,5 +235,45 @@ class SalesAnalyticsTest extends TestCase
             ->getJson('/admin/prodaja/analytics?date_from=2026-06-30&date_to=2026-06-01')
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['date_to']);
+    }
+
+    public function test_admin_can_view_dashboard_page(): void
+    {
+        $admin = $this->makeAdmin();
+        $this->seedScenario();
+
+        $this->actingAs($admin)
+            ->get('/admin/prodaja/statistike?'.$this->range())
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/prodaja/statistike')
+                ->has('analytics.kpis')
+                ->has('analytics.occupancy_by_class')
+                ->has('analytics.cancellation')
+                ->has('analytics.cancellation_trend')
+                ->has('analytics.occupancy_extremes')
+                ->where('analytics.kpis.tickets_sold', 3)
+                ->has('period.date_from')
+                ->has('period.date_to')
+            );
+    }
+
+    public function test_dashboard_defaults_to_last_30_days_without_params(): void
+    {
+        $this->actingAs($this->makeAdmin())
+            ->get('/admin/prodaja/statistike')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/prodaja/statistike')
+                ->where('period.date_from', now()->subDays(29)->toDateString())
+                ->where('period.date_to', now()->toDateString())
+            );
+    }
+
+    public function test_non_admin_cannot_view_dashboard_page(): void
+    {
+        $this->actingAs($this->makeCustomer())
+            ->get('/admin/prodaja/statistike?'.$this->range())
+            ->assertForbidden();
     }
 }

@@ -21,6 +21,7 @@ const NAV_LINKS = [
     { label: 'Performanse', href: '/admin/performanse' },
     { label: 'Statistika', href: '/admin/statistika' },
     { label: 'Korisnička podrška', href: '/admin/podrska/statistike' },
+    { label: 'Prodaja', href: '/admin/prodaja/statistike' },
 ];
 
 export default function AdminLayout({
