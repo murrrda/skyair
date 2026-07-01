@@ -26,8 +26,10 @@ class PerformanceController extends Controller
             'role' => $request->string('role')->toString() ?: null,
         ];
 
+        $report = $this->reports->report($from, $to, $filters);
+
         return Inertia::render('admin/performanse/index', [
-            'report' => $this->reports->report($from, $to, $filters),
+            'report' => $report,
             'filters' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
