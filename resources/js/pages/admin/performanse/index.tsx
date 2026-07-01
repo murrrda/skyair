@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { todayIso } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 const MONTHS_SR = [
@@ -233,6 +234,8 @@ export default function Performanse() {
     const [exportFrom, setExportFrom] = useState(from);
     const [exportTo, setExportTo] = useState(to);
 
+    const today = todayIso();
+
     function apply(
         next: Partial<{
             from: string;
@@ -315,6 +318,7 @@ export default function Performanse() {
                         <Input
                             id="from"
                             type="date"
+                            max={today}
                             value={from}
                             onChange={(e) => {
                                 setFrom(e.target.value);
@@ -333,6 +337,8 @@ export default function Performanse() {
                         <Input
                             id="to"
                             type="date"
+                            min={from || undefined}
+                            max={today}
                             value={to}
                             onChange={(e) => {
                                 setTo(e.target.value);
@@ -486,7 +492,7 @@ export default function Performanse() {
                                 broj letova
                             </span>
                         </h2>
-                        <div className="mt-6 flex h-48 items-end justify-between gap-2">
+                        <div className="mt-6 flex items-end justify-between gap-2">
                             {report.load_by_weekday.map((d) => (
                                 <div
                                     key={d.day}
@@ -502,17 +508,19 @@ export default function Performanse() {
                                     >
                                         {d.flights}
                                     </span>
-                                    <div
-                                        className={cn(
-                                            'w-full rounded-t-md',
-                                            d.weekend
-                                                ? 'bg-amber-500'
-                                                : 'bg-blue-600',
-                                        )}
-                                        style={{
-                                            height: `${Math.max(4, (d.flights / maxDay) * 100)}%`,
-                                        }}
-                                    />
+                                    <div className="flex h-40 w-full items-end">
+                                        <div
+                                            className={cn(
+                                                'w-full rounded-t-md',
+                                                d.weekend
+                                                    ? 'bg-amber-500'
+                                                    : 'bg-blue-600',
+                                            )}
+                                            style={{
+                                                height: `${Math.max(4, (d.flights / maxDay) * 100)}%`,
+                                            }}
+                                        />
+                                    </div>
                                     <span
                                         className={cn(
                                             'text-xs',
@@ -793,6 +801,7 @@ export default function Performanse() {
                                 <Input
                                     id="export-from"
                                     type="date"
+                                    max={today}
                                     value={exportFrom}
                                     onChange={(e) =>
                                         setExportFrom(e.target.value)
@@ -810,6 +819,8 @@ export default function Performanse() {
                                 <Input
                                     id="export-to"
                                     type="date"
+                                    min={exportFrom || undefined}
+                                    max={today}
                                     value={exportTo}
                                     onChange={(e) =>
                                         setExportTo(e.target.value)

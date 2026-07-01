@@ -10,6 +10,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { todayIso } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 type TrainingType = {
@@ -111,6 +112,7 @@ export default function ZaposlenObuke({
     });
 
     const fieldErrors = errors as unknown as Record<string, string>;
+    const today = todayIso();
 
     function updateRow(index: number, patch: Partial<TrainingRow>) {
         setData(
@@ -308,6 +310,7 @@ export default function ZaposlenObuke({
                             >
                                 <Input
                                     type="date"
+                                    max={today}
                                     value={row.started_at}
                                     onChange={(e) =>
                                         updateRow(index, {
@@ -335,6 +338,8 @@ export default function ZaposlenObuke({
                             >
                                 <Input
                                     type="date"
+                                    min={row.started_at || undefined}
+                                    max={today}
                                     value={row.finished_at}
                                     onChange={(e) =>
                                         updateRow(index, {

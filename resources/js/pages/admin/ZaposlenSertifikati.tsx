@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { todayIso } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 type CertificateType = {
@@ -129,6 +130,7 @@ export default function ZaposlenSertifikati({
     transform((d) => ({ ...d, action: actionRef.current }));
 
     const fieldErrors = errors as unknown as Record<string, string>;
+    const today = todayIso();
 
     function updateRow(index: number, patch: Partial<CertificateRow>) {
         setData(
@@ -336,6 +338,7 @@ export default function ZaposlenSertifikati({
                                 >
                                     <Input
                                         type="date"
+                                        max={today}
                                         value={row.issued_at}
                                         onChange={(e) =>
                                             handleIssuedChange(
@@ -363,6 +366,7 @@ export default function ZaposlenSertifikati({
                                 >
                                     <Input
                                         type="date"
+                                        min={row.issued_at || undefined}
                                         value={row.expires_at}
                                         onChange={(e) =>
                                             updateRow(index, {

@@ -11,6 +11,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { todayIso } from '@/lib/date';
 import { cn } from '@/lib/utils';
 
 type TipUgovora = {
@@ -101,6 +102,8 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
     });
 
     transform((d) => ({ ...d, action: actionRef.current }));
+
+    const today = todayIso();
 
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -232,6 +235,7 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             >
                                 <Input
                                     type="date"
+                                    max={today}
                                     value={data.date_of_birth}
                                     onChange={(e) =>
                                         setData('date_of_birth', e.target.value)
@@ -410,6 +414,7 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             >
                                 <Input
                                     type="date"
+                                    min={data.date_of_birth || undefined}
                                     value={data.datum_zaposlenja}
                                     onChange={(e) =>
                                         setData(
@@ -430,6 +435,7 @@ export default function ZaposlenEdit({ zaposlen, tipoviUgovora }: Props) {
                             >
                                 <Input
                                     type="date"
+                                    min={data.datum_zaposlenja || undefined}
                                     value={data.datum_isteka}
                                     onChange={(e) =>
                                         setData('datum_isteka', e.target.value)
