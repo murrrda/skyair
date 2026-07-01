@@ -24,6 +24,12 @@ class IncidentAnalysisService
         foreach ($incident->responsibleEmployees as $employee) {
             $this->evaluate($employee);
         }
+
+        $employees = $incident->responsibleEmployees();
+
+        foreach ($employees as $employee) {
+            $this->evaluate($employee);
+        }
     }
 
     /**
