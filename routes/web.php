@@ -94,6 +94,7 @@ Route::middleware(['auth', 'can:is-admin'])->prefix('admin')->name('admin.')->gr
     Route::post('/servisi/{service}/zavrsi', [ServiceController::class, 'complete'])->name('servisi.complete');
 
     Route::get('/statistika', [StatisticsController::class, 'index'])->name('statistika.index');
+    Route::get('/statistika/pdf', [StatisticsController::class, 'pdf'])->name('statistika.pdf');
 });
 Route::post('/kupac/login', [LoginController::class, 'kupacLogin'])->name('kupac.login.store');
 

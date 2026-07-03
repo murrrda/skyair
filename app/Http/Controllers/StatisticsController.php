@@ -7,7 +7,9 @@ use App\Models\Plane;
 use App\Models\PlaneChange;
 use App\Models\RouteChange;
 use App\Models\Service;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Inertia\Inertia;
@@ -23,6 +25,39 @@ class StatisticsController extends Controller
 
     public function index(Request $request): Response
     {
+        return Inertia::render('admin/statistika/index', $this->buildStatistics($request));
+    }
+
+    /**
+     * Render the currently displayed statistics as a downloadable PDF report.
+     * The period is taken from the same query params as the page, so the PDF
+     * mirrors exactly what the admin sees on screen at the moment of clicking.
+     */
+    public function pdf(Request $request): HttpResponse
+    {
+        $data = $this->buildStatistics($request);
+
+        $pdf = Pdf::loadView('pdf.statistika', [
+            'data' => $data,
+            'generatedAt' => Carbon::now(),
+        ])->setPaper('a4', 'portrait');
+
+        $filename = sprintf(
+            'statistika-flote-%s_%s.pdf',
+            $data['period']['from'],
+            $data['period']['to'],
+        );
+
+        return $pdf->download($filename);
+    }
+
+    /**
+     * Compute the full statistics payload shared by the page and the PDF export.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildStatistics(Request $request): array
+    {
         [$from, $to] = $this->resolvePeriod($request);
 
         $planes = Plane::orderBy('reg_number')->get();
@@ -36,7 +71,7 @@ class StatisticsController extends Controller
         $totalFlights = (int) $flightsPerPlane->sum('flights');
         $fleetServiceInterval = $this->fleetAverage($serviceIntervals);
 
-        return Inertia::render('admin/statistika/index', [
+        return [
             'period' => [
                 'from' => $from->toDateString(),
                 'to' => $to->toDateString(),
@@ -53,7 +88,7 @@ class StatisticsController extends Controller
             'service_intervals' => $serviceIntervals,
             'changes' => $changes,
             'operational_hours_per_day' => self::OPERATIONAL_HOURS_PER_DAY,
-        ]);
+        ];
     }
 
     /**

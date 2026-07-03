@@ -2,6 +2,7 @@ import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Activity,
     BarChart3,
+    Download,
     Plane as PlaneIcon,
     RefreshCw,
     Wrench,
@@ -286,14 +287,24 @@ export default function StatistikaIndex() {
                 </header>
 
                 <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-10">
-                    <div className="mb-8">
-                        <h1 className="text-2xl font-bold tracking-tight">
-                            Statistika iskorišćenosti flote
-                        </h1>
-                        <p className="mt-1 text-sm text-muted-foreground">
-                            Pregled celokupne statistike flote za izabrani
-                            period.
-                        </p>
+                    <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h1 className="text-2xl font-bold tracking-tight">
+                                Statistika iskorišćenosti flote
+                            </h1>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Pregled celokupne statistike flote za izabrani
+                                period.
+                            </p>
+                        </div>
+                        <Button asChild variant="outline">
+                            <a
+                                href={`/admin/statistika/pdf?from=${period.from}&to=${period.to}`}
+                            >
+                                <Download className="mr-1 h-4 w-4" />
+                                Preuzmi PDF
+                            </a>
+                        </Button>
                     </div>
 
                     <form
